@@ -1,15 +1,36 @@
+const Repository = require("./repository");
+
+const repository = new Repository("workers");
+
 class Worker {
     constructor(workerId) {
         this.queue = [];
         this.id = workerId;
+
+        try {
+            this.lastTask = Date.parse(repository.get(this.id).lastUse);
+        } catch {
+            this.lastTask = undefined;
+        }
     }
 
     startNextTask() {
         const task = this.queue.find(x => !x.ended);
+        this.lastTask = new Date();
 
-        task?.execute()
+        const data = repository.get(this.id) ?? { usage: 0 };
+        data.date = this.lastTask;
+        data.usage++;
+        repository.addOrUpdate(this.id, data)
+            .saveChanges();
+
+        task?.execute(this)
             .then(_ => { task.ended = true; this.startNextTask(); })
             .catch(_ => { task.ended = true; this.startNextTask(); });
+
+        if(task == undefined && typeof(this.onEnd) === "function") {
+            this.onEnd();
+        }
     }
 
     addTask(task) {
@@ -18,6 +39,18 @@ class Worker {
         if(this.queue.length == 1 || this.queue[this.queue.length - 1].ended) {
             this.startNextTask();
         }
+    }
+
+    get cooldown() {
+        if(!this.lastTask) {
+            return 0;
+        }
+
+        return Math.max(((this.lastTask - new Date()) / 1000) + 11, 0);
+    }
+
+    set onEnd(val) {
+        this.endFunction = val;
     }
 }
 

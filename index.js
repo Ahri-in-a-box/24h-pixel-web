@@ -1,6 +1,6 @@
 const http = require('http');
 const https = require('https');
-
+require("./array-extensions");
 const api = require("./api");
 
 const express = require('express');
@@ -39,11 +39,14 @@ app.post(['/api/chunk'], api.getChunk.bind(api));
 app.post(['/api/worker'], api.getWorker.bind(api));
 app.post(['/api/place'], api.placePixel.bind(api));
 
+app.post(['/api/war/start'], api.wageWar.bind(api));
+app.post(['/api/war/end'], api.endWar.bind(api));
+
 app.post(['/api/war'], api.getWar.bind(api));
 app.get(['/api/workers'], api.getWorkerStatus.bind(api));
 app.post(['/war/go'], (req, res) => {
     const data = JSON.parse(readFileSync(`./${req.body.Image}.json`, "utf-8"));
-    api.placePixels(data, req.body.Chunk, req.body.Canvas);
+    api.placePixels(data, req.body.Chunk, req.body.Canvas, req.body.Cluster, req.body.Workers ?? 1);
     res.status(200)
         .send("YOLO!");
 });

@@ -1,7 +1,7 @@
 const Repository = require("./repository");
 const Task = require("./task");
-const { Workers } = require("./worker");
-require("./array-extensions");
+const WorkerManager = require("./worker-manager");
+const WebSocket = require("./web-socket");
 
 const apiUrl = process.env.API_URL;
 const authUrl = process.env.AUTH_URL;
@@ -17,10 +17,14 @@ function processData(data) {
 }
 
 class Api {
-    repository = new Repository("persistence");
-    workers = Workers;
-    currentWorker = 0;
+    layers = new Repository("layers");
     token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ6MktTejRUcWdvMHkzQzZ3czBoRmQ2cXBjV241WEdueWRpUThRUWQtWWNzIn0.eyJleHAiOjE3MTI0Mjg2OTUsImlhdCI6MTcxMjQyMTQ5NSwianRpIjoiNjZiNDkyMDEtN2QxOC00MjMwLTgwYjctYWRkZDMyNzU3MTUzIiwiaXNzIjoiaHR0cDovLzE0OS4yMDIuNzkuMzQ6ODA4MS9yZWFsbXMvY29kZWxlbWFucyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiI3NjhiOTMwMC02N2IwLTQzY2EtYjJiMS0xNDQwMTlhOWQ0NTEiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJwaXhlbC13YXIiLCJzZXNzaW9uX3N0YXRlIjoiN2EzYWIwNTUtZDQ5Ny00MWNhLTk0NmEtYTAxZjFjMGU0MGIxIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJodHRwOi8vMTQ5LjIwMi43OS4zNDo4MDgwIiwiaHR0cDovL2xvY2FsaG9zdDo0MjAwIl0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtY29kZWxlbWFucyIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsInNpZCI6IjdhM2FiMDU1LWQ0OTctNDFjYS05NDZhLWEwMWYxYzBlNDBiMSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiSSdtIEFwcGxpICYgSSBrbm93IGl0IiwidGVhbV9pZCI6IjYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJhcHBsaV9hbmRfa25vd19pdCIsImdpdmVuX25hbWUiOiJJJ20gQXBwbGkgJiBJIGtub3cgaXQifQ.gMJwLL9eokmAU7qd3vw14okE_XYL06I-haupQ74vXfOF1npp_vnWPmRMbtWXPAYzTiEkvjl3SxxayAyJZ1CZWxRyGC-salcgUHWBlhn7AD5VyMY0QpDKbmpz6VZh4PguY2cfzUovSowB7b6I4c4aiKa6yQhOgtNbKAdN5QS6N1upGvF0x9_4y2dMBIlww7GZmEGIMBZBlfivMqow9tr0FfGFRj5oPNJJzRt5FCmMqV1oQLVoEKhQgqMvTr-GnogWGz8on1mBN7C4xv1eBHCIQ7feSC3ll_lyUnsie7xkNsj42CSAJ6iZH0ge0gFN_ZTGMuwCV7egSPyjTZNj2MQWhg";
+
+    constructor() {
+        if(this.token) {
+            WebSocket.open(this.token);
+        }
+    }
 
     async getToken() {
         const result = await fetch(authUrl, {
@@ -38,6 +42,7 @@ class Api {
 
         if(result.ok) {
             this.token = (await result.json()).access_token;
+            WebSocket.open(this.token, this.getToken.bind(this));
         }
     }
 
@@ -195,16 +200,11 @@ class Api {
     }
 
     async getWorkerStatus(req, res) {
-        const data = this.workers.map(worker => {
+        const data = WorkerManager.workers.map(worker => {
             const queue = worker.queue.filter(x => !x.ended).length;
-            let lastUse = this.repository.get(worker.id);
-            let cooldown = 0;
-            if(lastUse) {
-                lastUse = Date.parse(lastUse);
-                cooldown = Math.max(((lastUse - Date.now()) / 1000) + 10, 0);
-            }
+            let cooldown = worker.cooldown;
 
-            return { id: worker.id, free: queue == 0, cooldown, queue: queue };
+            return { id: worker.id, free: queue == 0, cooldown: worker.cooldown, queue: queue };
         });
 
         res.status(200)
@@ -214,29 +214,32 @@ class Api {
     async placePixel(req, res) {
         const data = {
             teamId: req.body.Team ?? req.body.TeamId,
-            workerId: this.currentWorker,
             canvasName: req.body.Canvas ?? req.body.CanvasName,
             chunk: req.body.Chunk ?? req.body.ChunkId,
             color: req.body.Color,
             x: req.body.Pos?.X ?? req.body.X ?? req.body.PosX,
-            y: req.body.Pos?.Y ?? req.body.Y ?? req.body.PosY
+            y: req.body.Pos?.Y ?? req.body.Y ?? req.body.PosY,
+            clusterName: req.body.Cluster ?? req.body.ClusterName
         };
         const params = {
             teamId: "No team id provided.",
             canvasName: "No canvas name provided.",
-            chunk: "No chunk id provided.",
             color: "No color provided.",
             x: "No x axis position provided.",
             y: "No y axis position provided."
         };
 
-        if(Object.keys(params).some(x => data[x] == undefined) || data.x < 0 || data.y < 0) {
+        if(Object.keys(params).some(x => data[x] == undefined) || data.x < 0 || data.y < 0 || WorkerManager.getCluster(data.clusterName) == undefined) {
             let message = Object.entries(params)
                 .map(([key, val]) => data[key] == undefined ? val : "")
                 .join(" ");
 
             if(data.x < 0 || data.y < 0) {
-                message += " Invalid position.";
+                message += " Invalid position. ";
+            }
+
+            if(WorkerManager.getCluster(data.clusterName) == undefined) {
+                message += ` Cluster ${data.clusterName} is not available.`;
             }
 
             res.status(400)
@@ -245,10 +248,8 @@ class Api {
             return;
         }
 
-        const task = new Task(async signal => {
-            this.repository.addOrUpdate(data.workerId, new Date())
-                .saveChanges();
-            return await this.post(signal, `${apiUrl}/equipes/${data.teamId}/workers/${data.workerId + 251}/pixel`, {
+        const task = new Task(async (signal, worker) => {
+            return await this.post(signal, `${apiUrl}/equipes/${data.teamId}/workers/${worker.id + 251}/pixel`, {
                 canvas: data.canvasName,
                 chunk: data.chunk,
                 color: data.color,
@@ -257,29 +258,29 @@ class Api {
             });
         });
 
-        this.workers[data.workerId].addTask(task);
-        this.currentWorker = (++this.currentWorker) % 50;
+        WorkerManager.addTask(task, data.clusterName);
 
         res.status(200)
             .send(task.id);
     }
 
-    async placePixels(pixels, chunk, canvas) {
-        const data = pixels.map((x, i) => ({
-            workerId: i % 50,
+    async placePixels(pixels, chunk, canvas, clusterName, numberOfWorkers) {
+        const data = pixels.map(x => ({
             teamId: 6,
             canvasName: canvas,
             chunk: chunk,
             color: x.color,
             pos_x: x.coord.x,
-            pos_y: x.coord.y,
+            pos_y: x.coord.y
         }));
 
+        if(WorkerManager.getCluster(data.clusterName) == undefined) {
+            WorkerManager.createCluster(clusterName, numberOfWorkers);
+        }
+
         data.forEach(x => {
-            const task = new Task(async signal => {
-                this.repository.addOrUpdate(x.workerId, new Date())
-                    .saveChanges();
-                return await this.post(signal, `${apiUrl}/equipes/${x.teamId}/workers/${x.workerId + 251}/pixel`, {
+            const task = new Task(async (signal, worker) => {
+                return await this.post(signal, `${apiUrl}/equipes/${x.teamId}/workers/${worker.id + 251}/pixel`, {
                     canvas: x.canvasName,
                     chunk: x.chunk,
                     color: x.color,
@@ -288,8 +289,10 @@ class Api {
                 });
             });
 
-            this.workers[x.workerId].addTask(task);
+            WorkerManager.addTask(task, clusterName);
         });
+
+        WorkerManager.releaseClusterOnFinish(clusterName);
     }
 
     async getWar(req, res) {
@@ -353,6 +356,132 @@ class Api {
             res.status(400)
                 .send(e);
         }
+    }
+
+    async wageWar(req, res) {
+        const data = {
+            team: req.body.Team ?? req.body.TeamId,
+            canvasName: req.body.Canvas ?? req.body.CanvasName,
+            chunk: req.body.Chunk ?? req.body.ChunkId,
+            clusterName: req.body.Cluster ?? req.body.ClusterName,
+            numberOfWorkers: req.body.Workers,
+            image: {
+                x: req.body.Image?.X,
+                y: req.body.Image?.Y,
+                width: req.body.Image?.Width,
+                height: req.body.Image?.Height,
+            }
+        };
+
+        data.layer = this.layers.get(data.clusterName)?.image;
+
+        if(data.canvasName == undefined || data.chunk == undefined || data.numberOfWorkers == undefined || data.layer == undefined) {
+            let message = "";
+
+            if(data.canvasName == undefined) {
+                message += "No canvas provided. ";
+            }
+
+            if(data.chunk == undefined) {
+                message += "No chunk provided. ";
+            }
+
+            if(data.numberOfWorkers == undefined ) {
+                message += "No number of workers provided. ";
+            }
+
+            if(data.layer == undefined ) {
+                message += "Layer not found. ";
+            }
+
+            res.status(400)
+                .send(message);
+
+            return;
+        }
+
+        try {
+            WorkerManager.createCluster(data.clusterName, data.numberOfWorkers);
+        } catch(e) {
+            res.status(400)
+                .send(e);
+        }
+
+        const url = `${apiUrl}/pixels/${data.canvasName}/settings`;
+        const options = {
+            headers: {
+                Authorization: `Bearer ${this.token}`
+            }
+        };
+
+        let result = await fetch(url, options);
+        if(result.status == 403) {
+            await this.getToken();
+            options.headers.Authorization = `Bearer ${this.token}`;
+            result = await fetch(url, options);
+        }
+
+        if(!result.ok) {
+            res.status(result.status)
+                .send(await result.text());
+            return;
+        }
+
+        const canvas = await result.json();
+        WebSocket.addListener(data.clusterName, event => {
+            if(event.canvasId == canvas.id) {
+                if(data.chunk) {
+                    const x = Math.floor(event.x / canvas.chunkWidth);
+                    const y = Math.floor(event.y % canvas.chunkHeight);
+                    const chunkId = x * (canvas.height / canvas.chunkHeight) + y;
+
+                    if(chunkId == data.chunk) {
+                        const pixel = data.layer.find(l => l.coord.x == event.x % canvas.chunkWidth && l.coord.y == event.y % canvas.chunkHeight);
+
+                        const task = new Task(async (signal, worker) => {
+                            return await this.post(signal, `${apiUrl}/equipes/${data.team}/workers/${worker.id + 251}/pixel`, {
+                                canvas: data.canvasName,
+                                color: pixel.color,
+                                pos_x: event.x,
+                                pos_y: event.y
+                            });
+                        });
+
+                        WorkerManager.addTask(task, data.clusterName);
+                    }
+                }
+            }
+        });
+
+        data.layer.forEach(x => {
+            const task = new Task(async (signal, worker) => {
+                return await this.post(signal, `${apiUrl}/equipes/${data.team}/workers/${worker.id + 251}/pixel`, {
+                    canvas: data.canvasName,
+                    chunk: data.chunk,
+                    color: x.color,
+                    pos_x: x.coord.x,
+                    pos_y: x.coord.y
+                });
+            });
+
+            WorkerManager.addTask(task, data.clusterName);
+        });
+    
+        res.status(200)
+            .send("Nous sommes en guerre!");
+    }
+
+    async endWar(req, res) {
+        const clusterName = req.body.Cluster ?? req.body.ClusterName;
+
+        if(WorkerManager.getCluster(clusterName) == undefined) {
+            res.status(400)
+                .send("Cluster not found.");
+            return;
+        }
+
+        WebSocket.removeListener(clusterName);
+        WorkerManager.releaseCluster(clusterName);
     }
 }
 

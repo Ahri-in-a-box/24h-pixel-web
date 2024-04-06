@@ -27,9 +27,9 @@ class Task {
         this._result = val;
     }
 
-    execute() {
+    execute(worker) {
         return new Promise(async (resolve, reject) => {
-            const result = await this.fetchResult(this.signal);
+            const result = await this.fetchResult(this.signal, worker);
 
             if(!result.ok) {
                 this.result = await result.text();

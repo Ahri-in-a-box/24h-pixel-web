@@ -25,6 +25,18 @@ function initExtensions () {
         sum: function (selector) {
             selector ??= x => x;
             return this.reduce((prec, curr) => prec + parseInt(selector(curr)), 0);
+        },
+        shuffle: function() {
+            const result = [...this];
+            let ind = this.length;
+
+            while(ind > 0) {
+                let rand = Math.floor(Math.random() * ind);
+                ind--;
+                [result[ind], result[rand]] = [result[rand], result[ind]];
+            }
+
+            return result;
         }
     };
 
