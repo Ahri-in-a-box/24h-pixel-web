@@ -2,7 +2,10 @@ const { Workers } = require("./worker");
 
 function relocateWorkers(from, to, number) {
     if(from.length == number) {
-        from.forEach(x => to.push(x));
+        for(let i = 0; i < number; i++) {
+            to.push(from.unshif());
+        }
+        
         return;
     }
 

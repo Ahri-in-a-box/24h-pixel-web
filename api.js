@@ -2,6 +2,7 @@ const Repository = require("./repository");
 const Task = require("./task");
 const WorkerManager = require("./worker-manager");
 const WebSocket = require("./web-socket");
+const color = require("./colors");
 
 const apiUrl = process.env.API_URL;
 const authUrl = process.env.AUTH_URL;
@@ -482,6 +483,123 @@ class Api {
 
         WebSocket.removeListener(clusterName);
         WorkerManager.releaseCluster(clusterName);
+        res.status(200)
+            .send("War is gone");
+    }
+
+    async defend(req, res) {
+        const data = {
+            team: req.body.Team ?? req.body.TeamId,
+            canvasName: req.body.Canvas ?? req.body.CanvasName,
+            chunk: req.body.Chunk ?? req.body.ChunkId,
+            clusterName: req.body.Cluster ?? req.body.ClusterName,
+            numberOfWorkers: req.body.Workers,
+            image: {
+                x: req.body.Image?.X,
+                y: req.body.Image?.Y,
+                width: req.body.Image?.Width,
+                height: req.body.Image?.Height,
+            }
+        };
+
+        data.layer = this.layers.get(data.clusterName)?.image;
+
+        if(data.canvasName == undefined || data.chunk == undefined || data.numberOfWorkers == undefined || data.layer == undefined) {
+            let message = "";
+
+            if(data.canvasName == undefined) {
+                message += "No canvas provided. ";
+            }
+
+            if(data.chunk == undefined) {
+                message += "No chunk provided. ";
+            }
+
+            if(data.numberOfWorkers == undefined ) {
+                message += "No number of workers provided. ";
+            }
+
+            if(data.layer == undefined ) {
+                message += "Layer not found. ";
+            }
+
+            res.status(400)
+                .send(message);
+
+            return;
+        }
+
+        try {
+            WorkerManager.createCluster(data.clusterName, data.numberOfWorkers);
+        } catch(e) {
+            res.status(400)
+                .send(e);
+        }
+
+        const url = `${apiUrl}/pixels/${data.canvasName}/settings`;
+        const options = {
+            headers: {
+                Authorization: `Bearer ${this.token}`
+            }
+        };
+
+        let result = await fetch(url, options);
+        if(result.status == 403) {
+            await this.getToken();
+            options.headers.Authorization = `Bearer ${this.token}`;
+            result = await fetch(url, options);
+        }
+
+        if(!result.ok) {
+            res.status(result.status)
+                .send(await result.text());
+            return;
+        }
+
+        const canvas = await result.json();
+        WebSocket.addListener(data.clusterName, event => {
+            if(event.canvasId == canvas._id) {
+                if(data.chunk) {
+                    const x = Math.floor(event.x / canvas.chunkWidth);
+                    const y = Math.floor(event.y / canvas.chunkHeight);
+                    const chunkId = x * (canvas.height / canvas.chunkHeight) + y + 1;
+
+                    if(chunkId == data.chunk) {
+                        const pixel = data.layer.find(l => l.coord.x == event.x % canvas.chunkWidth && l.coord.y == event.y % canvas.chunkHeight);
+                        if(pixel.color != color(event.rgb)) {
+                            const task = new Task(async (signal, worker) => {
+                                return await this.post(signal, `${apiUrl}/equipes/${data.team}/workers/${worker.id + 251}/pixel`, {
+                                    canvas: data.canvasName,
+                                    color: pixel.color,
+                                    pos_x: event.x,
+                                    pos_y: event.y
+                                });
+                            });
+    
+                            WorkerManager.addTask(task, data.clusterName);
+                        }
+                    }
+                }
+            }
+        });
+    
+        res.status(200)
+            .send("Nous sommes en guerre!");
+    }
+
+    async whiteFlag(req, res) {
+        const clusterName = req.body.Cluster ?? req.body.ClusterName;
+
+        if(WorkerManager.getCluster(clusterName) == undefined) {
+            res.status(400)
+                .send("Cluster not found.");
+            return;
+        }
+
+        WebSocket.removeListener(clusterName);
+        WorkerManager.releaseCluster(clusterName);
+        res.status(200)
+            .send("War is gone");
     }
 }
 

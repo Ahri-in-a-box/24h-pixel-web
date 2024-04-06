@@ -22,9 +22,15 @@ function initExtensions () {
 
             return result;
         },
+        min: function (selector) {
+            selector ??= x => x;
+            let i = 0;
+            return this.sort((a, b) => selector(a, i) - selector(b, i))[0];
+        },
         sum: function (selector) {
             selector ??= x => x;
-            return this.reduce((prec, curr) => prec + parseInt(selector(curr)), 0);
+            let i = 0;
+            return this.reduce((prec, curr) => prec + parseInt(selector(curr, i++)), 0);
         },
         shuffle: function() {
             const result = [...this];

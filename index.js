@@ -10,7 +10,6 @@ const serve_static = require('serve-static');
 const { readFileSync } = require('fs');
 const { send } = require('./utils.js');
 const config = require('./config.json');
-const Api = require('./api.js');
 config.tls = { key: process.env.TLS_KEY, cert: process.env.TLS_CERT };
 
 if(config.useTls){
@@ -41,6 +40,8 @@ app.post(['/api/place'], api.placePixel.bind(api));
 
 app.post(['/api/war/start'], api.wageWar.bind(api));
 app.post(['/api/war/end'], api.endWar.bind(api));
+app.post(['/api/defend/start'], api.defend.bind(api));
+app.post(['/api/defend/end'], api.whiteFlag.bind(api));
 
 app.post(['/api/war'], api.getWar.bind(api));
 app.get(['/api/workers'], api.getWorkerStatus.bind(api));
