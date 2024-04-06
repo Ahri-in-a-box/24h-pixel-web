@@ -28,6 +28,7 @@ app.use(compression());
 app.use(serve_static(__dirname + '/public'));
 
 app.get(['/'], (req, res) => send(res, "./index.html"));
+app.get(['/api/ping'], (req, res) => res.status(200).send("pong"));
 
 app.use((req, res, next) => {
     req.path.replace("..","");
