@@ -39,7 +39,7 @@ class Api {
                 "Content-Type": 'application/x-www-form-urlencoded;charset=UTF-8'
             },
             method: 'POST'
-        });
+        }).catch(_ => ({ status: 400, text: async() => "Connection failed" }));;
 
         if(result.ok) {
             this.token = (await result.json()).access_token;
@@ -54,11 +54,11 @@ class Api {
             }
         };
 
-        let result = await fetch(url, options);
+        let result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         if(result.status == 403) {
             await this.getToken();
             options.headers.Authorization = `Bearer ${this.token}`;
-            result = await fetch(url, options);
+            result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         }
 
         const message = result.headers.get("content-type")?.includes("application/json")
@@ -79,11 +79,11 @@ class Api {
             signal
         };
 
-        let result = await fetch(url, options);
+        let result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         if(result.status == 403) {
             await this.getToken();
             options.headers.Authorization = `Bearer ${this.token}`;
-            result = await fetch(url, options);
+            result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         }
 
         return result;
@@ -135,11 +135,11 @@ class Api {
             }
         };
 
-        let result = await fetch(url, options);
+        let result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         if(result.status == 403) {
             await this.getToken();
             options.headers.Authorization = `Bearer ${this.token}`;
-            result = await fetch(url, options);
+            result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         }
 
         if(result.ok) {
@@ -311,11 +311,11 @@ class Api {
             }
         };
 
-        let result = await fetch(`${apiUrl}/canvas/${canvasId}`, options);
+        let result = await fetch(`${apiUrl}/canvas/${canvasId}`, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         if(result.status == 403) {
             await this.getToken();
             options.headers.Authorization = `Bearer ${this.token}`;
-            result = await fetch(url, options);
+            result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         }
 
         if(!result.ok) {
@@ -325,7 +325,7 @@ class Api {
 
         const canvas = await result.json();
         try {
-            const promises = canvas.chunks.map(x => fetch(`${apiUrl}/canvas/${canvasId}/chunks/${x.id}`, options));
+            const promises = canvas.chunks.map(x => fetch(`${apiUrl}/canvas/${canvasId}/chunks/${x.id}`, options)).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
             const results = await Promise.all(promises);
             const chunks = (await Promise.all(results.map(x => x.json()))).flatMap(x => x.statistiquePixelPose);
             const total = chunks.sum(x => x.nombre);
@@ -337,7 +337,7 @@ class Api {
                 }))
                 .sort((a, b) => b.pixels - a.pixels);
 
-            const response = await fetch(`${apiUrl}/equipes`, options);
+            const response = await fetch(`${apiUrl}/equipes`, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
             let otherTeams = await response.json();
             otherTeams = otherTeams.filter(x => teams.find(t => t.id == x.id) == undefined)
                 .map(x => ({
@@ -415,11 +415,11 @@ class Api {
             }
         };
 
-        let result = await fetch(url, options);
+        let result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         if(result.status == 403) {
             await this.getToken();
             options.headers.Authorization = `Bearer ${this.token}`;
-            result = await fetch(url, options);
+            result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         }
 
         if(!result.ok) {
@@ -543,11 +543,11 @@ class Api {
             }
         };
 
-        let result = await fetch(url, options);
+        let result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         if(result.status == 403) {
             await this.getToken();
             options.headers.Authorization = `Bearer ${this.token}`;
-            result = await fetch(url, options);
+            result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         }
 
         if(!result.ok) {
