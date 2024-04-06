@@ -1,0 +1,24 @@
+{
+  "name": "24h-pixel-web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --env-file=.env index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ahri-in-a-box/24h-pixel-web.git"
+  },
+  "author": "AppliDev'",
+  "license": "GPL-3.0+",
+  "bugs": {
+    "url": "https://github.com/Ahri-in-a-box/24h-pixel-web/issues"
+  },
+  "homepage": "https://github.com/Ahri-in-a-box/24h-pixel-web#readme",
+  "dependencies": {
+    "compression": "^1.7.4",
+    "express": "^4.19.2",
+    "serve-static": "^1.15.0"
+  }
+}
