@@ -1,18 +1,26 @@
+<style>
+    .modal {
+        --bs-modal-border-radius: 32px;
+        --bs-modal-padding: 24px;
+        --bs-modal-header-padding: 1rem 24px;
+    }
+</style>
+
 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Nouveau calques</h5>
         </div>
         <div class="modal-body">
-            <form id="layer-form" onsubmit="event.preventDefault();">
+            <form id="layer-form" class="d-flex flex-column gap-3" onsubmit="event.preventDefault();">
                 <input id="Id" name="Id" type="hidden" />
-                <div class="form-row">
+                <div class="row">
                     <div class="col">
                         <label name="Name" class="form-label">Nom du calque</label>
                         <input id="Name" name="Name" type="text" class="form-control" placeholder="Nom de votre calque" />
                     </div>
                 </div>
-                <div class="form-row">
+                <div class="row">
                     <div class="col">
                         <label name="Chunk" class="form-label">Chunk</label>
                         <input id="Chunk" name="Chunk" type="number" min="1" step="1" class="form-control" placeholder="Numéro du chunk" />
@@ -22,7 +30,7 @@
                         <input id="NbWorkers" name="NbWorkers" type="number" min="1" max="50" step="1" class="form-control" placeholder="Nombre de workers" />
                     </div>
                 </div>
-                <div class="form-row">
+                <div class="row">
                     <div class="col">
                         <label name="Image" class="form-label">Image</label>
                         <input id="Image" name="Image" type="file" class="form-control" />
@@ -31,8 +39,8 @@
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn" data-dismiss="modal" onclick="closeModal();">Annuler</button>
-            <button type="button" class="btn btn-primary" onclick="saveLayer();">Enregistrer</button>
+            <button type="button" class="btn rounded-pill" data-dismiss="modal" onclick="closeModal();">Annuler</button>
+            <button type="button" class="btn btn-primary rounded-pill" onclick="saveLayer();">Enregistrer</button>
         </div>
     </div>
 </div>
