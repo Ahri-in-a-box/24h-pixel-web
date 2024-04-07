@@ -271,35 +271,63 @@ class Api {
             .send(task.id);
     }
 
-    async placePixels(pixels, chunk, canvas, clusterName, numberOfWorkers) {
-        const data = pixels.map(x => ({
-            teamId: 6,
-            canvasName: canvas,
-            chunk: chunk,
-            color: x.color,
-            pos_x: x.coord.x,
-            pos_y: x.coord.y
-        }));
+    async placePixels(req, res) {
+        const data = {
+            team: req.body.Team ?? req.body.TeamId,
+            canvasName: req.body.Canvas ?? req.body.CanvasName,
+            clusterName: req.body.Cluster ?? req.body.ClusterName
+        };
 
-        if(WorkerManager.getCluster(data.clusterName) == undefined) {
-            WorkerManager.createCluster(clusterName, numberOfWorkers);
+        const layer = LayersController.getRawLayer(data.clusterName);
+        if(data.team == undefined || data.canvasName == undefined || layer == undefined) {
+            let message = "";
+
+            if(data.team == undefined) {
+                message += "No team provided. ";
+            }
+
+            if(data.canvasName == undefined) {
+                message += "No canvas provided. ";
+            }
+
+            if(layer == undefined) {
+                message += "Layer not found. ";
+            }
+
+            res.status(400)
+                .send(message);
+
+            return;
         }
 
-        data.forEach(x => {
+        data.layer = layer.Image;
+        data.chunk = layer.Chunk;
+        data.numberOfWorkers = layer.NbWorkers;
+
+        try {
+            WorkerManager.createCluster(data.clusterName, data.numberOfWorkers);
+        } catch(e) {
+            res.status(400)
+                .send(e.message);
+            return;
+        }
+
+        data.layer.forEach(x => {
             const task = new Task(async (signal, worker) => {
-                return await this.post(signal, `${apiUrl}/equipes/${x.teamId}/workers/${worker.id + 251}/pixel`, {
-                    canvas: x.canvasName,
-                    chunk: x.chunk,
+                return await this.post(signal, `${apiUrl}/equipes/${data.team}/workers/${worker.id + 251}/pixel`, {
+                    canvas: data.canvasName,
+                    chunk: data.chunk,
                     color: x.color,
-                    pos_x: x.pos_x,
-                    pos_y: x.pos_y
+                    pos_x: x.coord.x,
+                    pos_y: x.coord.y
                 });
             });
 
-            WorkerManager.addTask(task, clusterName);
+            WorkerManager.addTask(task, data.clusterName);
         });
-
-        WorkerManager.releaseClusterOnFinish(clusterName);
+    
+        res.status(200)
+            .send("Nous sommes en guerre!");
     }
 
     async getWar(req, res) {
@@ -413,6 +441,7 @@ class Api {
         } catch(e) {
             res.status(400)
                 .send(e);
+            return;
         }
 
         const url = `${apiUrl}/pixels/${data.canvasName}/settings`;

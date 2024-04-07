@@ -218,15 +218,13 @@
                         {
                             title: "Status",
                             data: "IsActive",
-                            render: function(data, type) {
+                            render: function(data, type, row) {
                                 if (type == "display") {
                                     if (!data) {
-                                        return '<button class="btn btn-outline-dark rounded-pill">Inactif</button>'
+                                        return `<button class="btn btn-outline-dark rounded-pill" onclick="startCluster(this, '${row.Name}');">Inactif</button>`
                                     } else {
                                         return '<button class="btn btn-primary rounded-pill">Actif</button>'
                                     }
-
-                                    
                                 }
 
                                 return data;
@@ -295,17 +293,32 @@
             data: JSON.stringify(data),
             type: 'POST',
             success: function (result) {
-                console.log(result);
-
                 if (data.id) {
-                    layersDataTable.rows.add([result], true);
+                    layersDataTable.row.add(result);
                 } else {
-                    layersDataTable.rows.update(result, $(`#layers-table tbody tr [id='${result.Id}']`), null, true);
+                    layersDataTable.row("#" + result.Id).data(result);
                 }
 
+                layersDataTable.draw(false);
                 closeModal();
             }
         });
     }
+
+    function startCluster(el, clusterName) {
+        $.ajax({
+            type: 'POST',
+            url: '/layers/place',
+            contentType: 'application/json',
+            data: JSON.stringify({ Team: 6, Canvas: "canvas_epreuve", Cluster: clusterName }),
+            success: function() {
+                $(el).attr('onclick', '')
+                    .removeClass("btn-outline-dark")
+                    .addClass("btn-primary")
+                    .text("Actif");
+            }
+        });
+    }
+
 </script>
 </html>

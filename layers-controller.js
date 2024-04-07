@@ -7,6 +7,7 @@ function mapLayer(layer) {
     if(!layer)
         return layer;
 
+    layer = JSON.parse(JSON.stringify(layer));
     layer.Image = layer.Id + layer.ImageExt;
     layer.IsActive = WorkerManager.getCluster(layer.Name) != undefined;
 
@@ -31,6 +32,8 @@ class LayersController {
         this.repository
             .addOrUpdate(layer.Id, layer)
             .saveChanges();
+
+        return layer.Id;
     }
 
     getLayer(id) {
