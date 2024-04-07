@@ -66,7 +66,7 @@ class WorkerManager {
     getMostConvenientWorker(clusterName) {
         return this.clusters[clusterName]
             .shuffle()
-            .sort((a, b) => a.queue.length == b.queue.length ? a.cooldown - b.cooldown : a.queue.length - b.queue.length)[0];
+            .sort((a, b) => a.waiting == b.waiting ? a.cooldown - b.cooldown : a.waiting - b.waiting)[0];
     }
 
     addTask(task, clusterName = "default") {

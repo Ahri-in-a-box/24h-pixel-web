@@ -18,7 +18,13 @@ class LayersController {
     repository = new Repository("layers");
 
     async saveLayer(layer) {
-        layer.Id ??= crypto.randomUUID();
+        if(!layer || layer == "") {
+            layer.Id = crypto.randomUUID();
+        }
+
+        if(layer.Image.includes("base64")) {
+            layer.Image = layer.Image.split("base64")[1];
+        }
 
         writeFileSync(`./public/layers/${layer.Id}.${layer.ImageExt}`, Buffer.from(layer.Image, "base64"));
         layer.Image = await imgToColors(`./public/layers/${layer.Id}.${layer.ImageExt}`);

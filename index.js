@@ -69,7 +69,7 @@ app.post(['/layers/get'], (req, res) => {
     res.status(200)
         .send(layer);
 });
-app.post(['/layers'], (_, res) => {
+app.get(['/layers'], (_, res) => {
     const layers = layersController.getLayers();
     res.status(200)
         .send(layers);

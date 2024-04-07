@@ -332,7 +332,7 @@ class Api {
 
         const canvas = await result.json();
         try {
-            const promises = canvas.chunks.map(x => fetch(`${apiUrl}/canvas/${canvasId}/chunks/${x.id}`, options)).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
+            const promises = canvas.chunks.map(x => fetch(`${apiUrl}/canvas/${canvasId}/chunks/${x.id}`, options).catch(_ => ({ status: 400, text: async() => "Connection failed" })));
             const results = await Promise.all(promises);
             const chunks = (await Promise.all(results.map(x => x.json()))).flatMap(x => x.statistiquePixelPose);
             const total = chunks.sum(x => x.nombre);
@@ -362,7 +362,7 @@ class Api {
                 }));
         } catch(e) {
             res.status(400)
-                .send(e);
+                .send(e.message);
         }
     }
 
