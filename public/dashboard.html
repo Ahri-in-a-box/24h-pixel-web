@@ -145,6 +145,11 @@
 
     function resetWorkerAvailability(id) {
         const $workerNode = $(`span[workerId=${id}]`);
+
+        $workerNode.css('background-color', 'var(--secondary-10)');
+        $workerNode.animate({
+            backgroundColor: "#FCA250"
+        }, 10000);
     }
 
     function populateTeamList() {
