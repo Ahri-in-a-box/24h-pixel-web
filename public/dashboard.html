@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas</title>
+
+    <!-- #region Imports CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/bootstrap.overrides.css">
+    <link rel="stylesheet" href="lib/custom-icons/custom-icons.css">
+    <link href="https://cdn.datatables.net/v/bs5/dt-2.0.3/fh-4.0.1/sc-2.4.1/sl-2.0.0/datatables.min.css" rel="stylesheet">
+    <!-- #endregion Imports CSS -->
+</head>
+<body class="vh-100 vw-100 d-flex">
+    <div class="col-2 bg-dark left-nav-panel p-4">
+        <div class="h-100 d-flex flex-column justify-content-center gap-5">
+            <a href="place.html" class="btn btn-light btn-nav"><em class="custom-icon plus"></em> Placez !</a>
+            <a class="btn btn-light btn-nav active"><em class="custom-icon view-grid"></em> Dashboard</a>
+            <a class="btn btn-light btn-nav"><em class="custom-icon chart-bar"></em> Statistiques</a>
+            <a class="btn btn-light btn-nav"><em class="custom-icon collection"></em> Calques</a>
+        </div>
+    </div>
+    <div class="d-flex flex-column gap-4 col p-4">
+        <h1>Dashboard</h1>
+        <div class="d-flex align-items-center gap-3 p-2 rounded-pill bg-primary-lighter">
+            <div class="bg-light rounded-circle p-2 ">
+                <em class="custom-icon icon-sm flag"></em>
+            </div>
+            <p class="fw-bolder fs-4">667 / 240000</p>
+            <button class="ms-auto btn btn-large btn-outline-primary rounded-pill">Placez un calque</button>
+            <button class="btn btn-large btn-primary rounded-pill">Placez vos pixels</button>
+        </div>
+        <div class="d-flex flex-grow-1 gap-32"> 
+            <div class="col-7 d-flex flex-column gap-32">
+
+                <!-- #region Workers Infos -->
+                <div class="d-flex flex-column gap-32 p-32 rounded-5 bg-primary-lighter">
+                    <div class="d-flex gap-64">
+                        <div class="d-flex flex-column">
+                            <p class="fw-bold">Mes</p>
+                            <p class="fw-bold fs-2">Workers</p>
+                        </div>
+                        <div class="ms-auto d-flex flex-column">
+                            <p class="fw-bold fs-2">37</p>
+                            <p class="text-secondary">Workers prêts</p>
+                        </div>
+                        <div class="d-flex flex-column">
+                            <p class="fw-bold fs-2">13</p>
+                            <p class="text-secondary">Workers indisponibles</p>
+                        </div>
+                    </div>
+                    <div id="workers-grid" class="d-flex flex-wrap gap-3">
+
+                    </div>
+                </div>
+                <!-- #endregion Workers Infos -->
+
+                <!-- #region Layers Infos -->
+                <div class="d-flex flex-column flex-grow-1 gap-3 p-32 rounded-5 bg-primary-lighter">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <p class="fw-bold">Mes</p>
+                            <p class="fw-bold fs-2">Calques</p>
+                        </div>
+                        <div class="ms-auto btn btn-primary rounded-pill">Ajouter</div>
+                    </div>
+                    <div id="layers-table-wrapper" class="flex-grow-1">
+                        <table id="layers-table" class="table table-hover custom-table">
+                        
+                        </table>
+                    </div>
+                </div>   
+                <!-- #endregion Layers Infos -->
+                
+            </div>
+            <div class="col d-flex flex-column bg-white gap-1 p-32 rounded-5">
+                <!-- #region Equipes Infos -->
+                <div class="d-flex align-items-end">
+                    <div>
+                        <p class="fw-bold">Les</p>
+                        <p class="fw-bold fs-2">Équipes</p>
+                    </div>
+                    <div class="d-flex gap-2 ms-auto">
+                        <p class="fw-bold">Le plus de pixels</p>
+                        <em class="custom-icon arrow-down"></em>
+                    </div>
+                </div>
+                <div id="teams-list" class="d-flex flex-column flex-grow-1 gap-3 pe-3 overflow-auto">
+
+                </div>
+                <!-- #endregion Equipes Infos -->
+            </div>
+        </div>
+    </div>
+</body>
+<!-- #region Imports JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script
+    src="https://code.jquery.com/jquery-3.7.1.min.js"
+    integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+    crossorigin="anonymous"></script>
+<script src="https://cdn.datatables.net/v/dt/dt-2.0.3/datatables.min.js"></script>
+<!-- #endregion Imports JS -->
+
+<script>
+    var layersDataTable;
+
+    $(document).ready(() => {
+        generateWorkersGrid();
+        layersDataTable = initLayersTable();
+        populateTeamList();
+    });
+
+    function generateWorkersGrid() {
+        const $workerGrid = $('#workers-grid');
+
+        let i = 0
+        for(i; i < 50; i++) {
+            $workerGrid.append(constructWorkerElemForGrid(i))
+        }
+    }
+
+    function constructWorkerElemForGrid(id) {
+        const $worker = $('<span>').addClass('worker-grid-elem rounded-3').attr('workerId', id);
+        return $worker;
+    }
+
+    function populateTeamList() {
+        const $teamsList = $('#teams-list');
+        $teamsList.css('max-height', $teamsList.outerHeight());
+        
+
+        let i = 1;
+        for (i; i <= 14; i++) {
+            const $teamElem = $('<div>');
+            const $textRow = $('<div>').addClass('d-flex justify-content-between mb-1');
+            $textRow.append($('<p>').text(`Equipe n°${i}`));
+            $textRow.append($('<p>').addClass('fw-bold').text(`${i * 100}`));
+
+            $progressWrapper = $('<div>').addClass('progress rounded-pill').height(16);
+            $progressBar = $('<div class="progress-bar rounded-pill" role="progressbar"></div>').css('width', `${i * 5}%`)
+            $progressWrapper.append($progressBar);
+
+            $teamElem.append($textRow);
+            $teamElem.append($progressWrapper);
+
+            $teamsList.append($teamElem);
+        }
+    }
+
+    function initLayersTable() {
+        const $table = $('#layers-table');
+
+        const availableSpace = $('#layers-table-wrapper').outerHeight();
+
+        return $table.DataTable({
+            layout: {
+                topStart: null,
+                topEnd: null,
+                bottomStart: null,
+            },
+            paging: false,
+            scrollY: availableSpace - 60,
+            data: [
+                {
+                    "Name": "Calque n°1",
+                    "Image": "fab.png",
+                    "ChunkId": 12,
+                    "NbWorkers": 20,
+                    "IsActive": false
+                },
+                {
+                    "Name": "Calque n°2",
+                    "Image": "fab.png",
+                    "ChunkId": 3,
+                    "NbWorkers": 20,
+                    "IsActive": true
+                }
+            ],
+            columns: [
+                {  
+                    title: "Nom",
+                    data: "Name",
+                    render: function(data, type, row) {
+                        if (type == "display") {
+                            return `<div class="d-flex align-items-center gap-2"><img class="layer-table-image" src="img/${row.Image}"></img>${data}</div>`
+                        }
+
+                        return data;
+                    }
+                },
+                {
+                    title: "Chunk",
+                    data: "ChunkId"
+                },
+                {
+                    title: "Worker",
+                    data: "NbWorkers"
+                },
+                {
+                    title: "Status",
+                    data: "IsActive",
+                    render: function(data, type) {
+                        if (type == "display") {
+                            if (!data) {
+                                return '<button class="btn btn-outline-dark rounded-pill">Inactif</button>'
+                            } else {
+                                return '<button class="btn btn-primary rounded-pill">Actif</button>'
+                            }
+
+                            
+                        }
+
+                        return data;
+                    }
+                }
+            ]
+        });
+    }
+</script>
+</html>

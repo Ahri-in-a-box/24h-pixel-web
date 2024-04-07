@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas</title>
+
+    <!-- #region Imports CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/bootstrap.overrides.css">
+    <link rel="stylesheet" href="lib/custom-icons/custom-icons.css">
+    <link href="https://cdn.datatables.net/v/bs5/dt-2.0.3/fh-4.0.1/sc-2.4.1/sl-2.0.0/datatables.min.css" rel="stylesheet">
+    <!-- #endregion Imports CSS -->
+
+    <style>
+        #colors-wrapper .color-block {
+            width: 32px;
+            height: 32px;
+        }
+
+        .pixel {
+            margin: 1px;
+            width: 6px;
+            height: 6px;
+            background-color: white;
+        }
+    </style>
+</head>
+<body class="vh-100 vw-100 d-flex">
+    <div class="col-2 bg-dark left-nav-panel p-4">
+        <div class="h-100 d-flex flex-column justify-content-center gap-5">
+            <a class="btn btn-light btn-nav active"><em class="custom-icon plus"></em> Placez !</a>
+            <a href="dashboard.html" class="btn btn-light btn-nav"><em class="custom-icon view-grid"></em> Dashboard</a>
+            <a class="btn btn-light btn-nav"><em class="custom-icon chart-bar"></em> Statistiques</a>
+            <a class="btn btn-light btn-nav"><em class="custom-icon collection"></em> Calques</a>
+        </div>
+    </div> 
+    <div id="grid-wrapper" class="col overflow-auto">
+        <div id="grid">
+
+        </div>
+    </div>
+    <div class="col-2 p-3 text-center bg-primary-lighter">
+        <p class="fw-bold mb-4">Glissez vos pixels !</p>
+        <div id="colors-wrapper" class="d-flex justify-content-center gap-4 flex-wrap">
+
+        </div>
+    </div>
+</body>
+<!-- #region Imports JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script
+    src="https://code.jquery.com/jquery-3.7.1.min.js"
+    integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+    crossorigin="anonymous"></script>
+<script src="https://cdn.datatables.net/v/dt/dt-2.0.3/datatables.min.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+<!-- #endregion Imports JS -->
+
+<script>
+
+    $(document).ready(() => {
+        populateColors();
+        generateGrid(5, 7, 50, 50);
+        handleGridScroll();
+        
+
+        handleToWebSocket();
+    });
+
+    function populateColors() {
+        const $colors = $('#colors-wrapper');
+
+        for (const [key, value] of Object.entries(colorsList)) {
+            const $color = $('<span>').addClass('color-block').css('background-color', `rgb(${value[0]} ${value[1]} ${value[2]})`);
+            $colors.append($color);        
+        }
+
+    }
+
+    function generateGrid(nbRow, nbCol, chunkX, chunkY) {
+        const $grid = $('#grid')
+
+        for (let rowIdx = 0; rowIdx < nbRow; rowIdx++) {
+            const $row = $(`<div rowId="${rowIdx}" class="d-flex"></div>`);
+            $grid.append($row);
+
+            for (let colIdx = 0; colIdx < nbCol; colIdx++) {
+                const $chunk = generateChunk(rowIdx, colIdx, chunkX, chunkY);
+                $row.append($chunk);
+            }
+        }
+    }
+
+    function generateChunk(rowIdx, colIdx, chunkX, chunkY) {
+        const $chunk = $('<div>');
+
+        for (let chunkRowIdx = 0; chunkRowIdx < chunkY; chunkRowIdx++) {
+            const $row = $(`<div chunkRowId="${chunkRowIdx}" class="d-flex"></div>`);
+            $chunk.append($row);
+
+            for (let chunkColIdx = 0; chunkColIdx < chunkX; chunkColIdx++) {
+                const $pixel = $(`<span x="${colIdx * chunkX + chunkColIdx}" y="${rowIdx * chunkY + chunkRowIdx}" title="${colIdx * chunkX + chunkColIdx} - ${rowIdx * chunkY + chunkRowIdx}" class="pixel">`)
+                $row.append($pixel);
+            }
+        }
+
+        return $chunk;
+    }
+
+    function updatePixelFromName(x, y, color_name) {
+        const color = colorsList[color_name];
+
+        $(`.pixel[x="${x}"][y="${y}"]`).css('background-color', `rgb(${color[0]} ${color[1]} ${color[2]})`);
+    }
+
+    function updatePixelFromRGB(x, y, rgb) {
+        $(`.pixel[x="${x}"][y="${y}"]`).css('background-color', `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`);
+    }
+
+    const token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ6MktTejRUcWdvMHkzQzZ3czBoRmQ2cXBjV241WEdueWRpUThRUWQtWWNzIn0.eyJleHAiOjE3MTI0NTkxNjAsImlhdCI6MTcxMjQ1MTk2MCwianRpIjoiYTFjMmY1OGQtODUyNy00ZDFjLTk0ZWQtOTU2MjVmYTU0NzA0IiwiaXNzIjoiaHR0cDovLzE0OS4yMDIuNzkuMzQ6ODA4MS9yZWFsbXMvY29kZWxlbWFucyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiI3NjhiOTMwMC02N2IwLTQzY2EtYjJiMS0xNDQwMTlhOWQ0NTEiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJwaXhlbC13YXIiLCJzZXNzaW9uX3N0YXRlIjoiZTQ4OGI1ZTMtYjJiOC00OTU2LTgwOGUtYWU0NjJkM2JiZWE5IiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJodHRwOi8vMTQ5LjIwMi43OS4zNDo4MDgwIiwiaHR0cDovL2xvY2FsaG9zdDo0MjAwIl0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtY29kZWxlbWFucyIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsInNpZCI6ImU0ODhiNWUzLWIyYjgtNDk1Ni04MDhlLWFlNDYyZDNiYmVhOSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiSSdtIEFwcGxpICYgSSBrbm93IGl0IiwidGVhbV9pZCI6IjYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJhcHBsaV9hbmRfa25vd19pdCIsImdpdmVuX25hbWUiOiJJJ20gQXBwbGkgJiBJIGtub3cgaXQifQ.deY1vNNrdY-D4t_tVlCFa7Q2JzPBLv3YV1asYVahPkRsM0_7YwT9XrPIY79u-e4h3OEfJTKWJFTBS4ThFAoHPjQMBXDU0Wl3NvzxokcLU8WfUMA23fxKqY0EaT8t3954RK_waKF-C6ekSgaYcQbNeUKiu9zbw1vLebePZ8ajgkthXkJpTp-cilWB_dKX29-ehdiyeJaQVORa2PDqxnm2UCDR7h5EkihU3LnAcmERVQtIKGI1ugL_QviAa83jbdDbi-xP_ylVTspA_Z35ZxNMWpQPSMRolknXWMJEVIiwKRNvarNUsYiiFksgOLHAYAv46nPMAJIIqBjxjXVv4SMOKw";
+    var socket;
+    function handleToWebSocket() {
+        socket = io('http://149.202.79.34:8085/api/socket', {
+            auth: { token }
+        });
+
+        socket.onopen = () => {
+            console.log('socket Open')
+        }
+        socket.onclose = function (event) {
+            console.log('socket closed', event);
+        };
+        socket.on('pixelUpdated', (infos) => {
+            updatePixelFromRGB(infos.x, infos.y, infos.rgb)
+        });
+    }
+
+    //#region Grid Scroll
+    var startY;
+    var startX;
+    var scrollLeft;
+    var scrollTop;
+    var isDown;
+    const gridWrapper = document.querySelector('#grid-wrapper');
+    function handleGridScroll() {
+    
+        gridWrapper.addEventListener('mousedown',e => mouseIsDown(e));  
+        gridWrapper.addEventListener('mouseup',e => mouseUp(e))
+        gridWrapper.addEventListener('mouseleave',e=>mouseLeave(e));
+        gridWrapper.addEventListener('mousemove',e=>mouseMove(e));
+    }
+
+    function mouseIsDown(e){
+        isDown = true;
+        startY = e.pageY - gridWrapper.offsetTop;
+        startX = e.pageX - gridWrapper.offsetLeft;
+        scrollLeft = gridWrapper.scrollLeft;
+        scrollTop = gridWrapper.scrollTop; 
+    }
+    function mouseUp(e){
+        isDown = false;
+    }
+    function mouseLeave(e){
+        isDown = false;
+    }
+    function mouseMove(e){
+        if(isDown){
+            e.preventDefault();
+            //Move vertcally
+            const y = e.pageY - gridWrapper.offsetTop;
+            const walkY = y - startY;
+            gridWrapper.scrollTop = scrollTop - walkY;
+
+            //Move Horizontally
+            const x = e.pageX - gridWrapper.offsetLeft;
+            const walkX = x - startX;
+            gridWrapper.scrollLeft = scrollLeft - walkX;
+
+        }
+    }
+    //#endregion Grid Scroll
+
+    const colorsList = {
+    "black": [0, 0, 0],   
+    "white": [255, 255, 255],
+    "deep_black": [13, 23, 31],
+    "deep_blue": [46, 70, 89],
+    "blue_grey": [67, 93, 115],
+    "grey_blue": [94, 120, 140],
+    "bluish_grey": [122, 149, 167],
+    "pale_blue_grey": [153, 176, 191],
+    "light_blue_grey": [180, 197, 209],
+    "very_light_blue_grey": [208, 221, 228],
+    "greyish_white": [241, 244, 247],
+    "jet_black": [13, 40, 41],
+    "dark_green": [21, 66, 55],
+    "bottle_green": [35, 92, 68],
+    "fir_green": [49, 117, 69],
+    "forest_green": [66, 143, 66],
+    "olive_green": [110, 168, 74],
+    "lime_green": [163, 194, 85],
+    "pale_lime_green": [207, 219, 114],
+    "dark_red": [117, 13, 16],
+    "brick_red": [148, 36, 26],
+    "rust_red": [179, 68, 40],
+    "orange_red": [209, 102, 48],
+    "orange_brown": [230, 141, 62],
+    "orange_yellow": [237, 172, 74],
+    "golden_yellow": [245, 203, 83],
+    "light_yellow": [255, 234, 99],
+    "crimson_red": [92, 30, 28],
+    "reddish_brown": [120, 54, 42],
+    "brown_orange": [145, 82, 68],
+    "golden_brown": [173, 140, 68],
+    "yellowish_brown": [199, 140, 88],
+    "light_brown": [224, 171, 114],
+    "pale_brown": [235, 196, 138],
+    "very_pale_brown": [245, 217, 166],
+    "dark_violet": [63, 26, 77],
+    "violet": [109, 41, 117],
+    "light_violet": [148, 57, 137],
+    "pale_violet": [179, 80, 141],
+    "pink_violet": [204, 107, 138],
+    "pink": [230, 148, 143],
+    "pale_pink": [245, 186, 169],
+    "dark_blue_violet": [29, 22, 82],
+    "blue_violet": [33, 40, 112],
+    "light_blue_violet": [44, 72, 143],
+    "pale_blue_violet": [57, 115, 173],
+    "light_blue": [83, 172, 204],
+    "light_blue_sky": [116, 206, 218],
+    "pale_blue": [165, 226, 230],
+    "very_pale_blue": [205, 241, 244]
+}
+</script>
+</html>

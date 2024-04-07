@@ -1,0 +1,49 @@
+:root {
+    --primary-05: #FFF3E9;
+    --primary-10: #FEE8D3;
+    --primary-20: #FDD1A7;
+    --primary-40: #FCA250;
+    
+    --secondary-05: #EAEDEE;
+    --secondary-10: #D5DADE;
+    --secondary-40: #596D79;
+    --secondary-80: #131D23;
+}
+
+.left-nav-panel {
+    width: 240px;
+    max-width: 240px;
+}
+
+.worker-grid-elem {
+    height: 32px;
+
+    flex: 1 0 8%;
+    background-color: var(--bs-primary);
+}
+
+.layer-table-image {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+}
+
+/* #region Custom Table */
+.custom-table thead th {
+    background-color: var(--primary-20) !important;
+    padding: 16px;
+}
+.custom-table thead th:first-of-type {
+    border-top-left-radius: 16px;
+    border-bottom-left-radius: 16px;
+}
+.custom-table thead th:last-of-type {
+    border-top-right-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+
+.custom-table tbody tr:first-of-type td {
+    padding-top: 16px;
+}
+/* #endregion Custom Table */

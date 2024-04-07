@@ -1,0 +1,6 @@
+API_URL="http://149.202.79.34:8085/api"
+AUTH_URL="http://149.202.79.34:8081/realms/codelemans/protocol/openid-connect/token"
+ID="appli_and_know_it"
+KEY="f.Kr)k^WPM@47De"
+TLS_KEY=""
+TLS_CERT=""

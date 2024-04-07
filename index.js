@@ -30,7 +30,7 @@ app.use(express.json());
 app.use(compression());
 app.use(serve_static(__dirname + '/public'));
 
-app.get(['/'], (req, res) => send(res, "./index.html"));
+app.get(['/'], (req, res) => send(res, "./dashboard.html"));
 app.get(['/api/ping'], (req, res) => res.status(200).send("pong"));
 
 app.post(['/api/teams'], api.getTeams.bind(api));

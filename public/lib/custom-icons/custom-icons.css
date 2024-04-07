@@ -1,0 +1,35 @@
+.custom-icon {
+    --icon-size: 24px;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    display: block;
+    background-size: auto;
+}
+
+.custom-icon.icon-sm {
+    --icon-size: 20px;
+}
+
+.custom-icon.plus {
+    background-image: url('./svg/PlusOutline.svg');
+}
+
+.custom-icon.chart-bar {
+    background: url('./svg/ChartBarOutline.svg');
+}
+
+.custom-icon.collection {
+    background: url('./svg/CollectionOutline.svg');
+}
+
+.custom-icon.view-grid {
+    background: url('./svg/ViewGridOutline.svg');
+} 
+
+.custom-icon.flag {
+    background: url('./svg/FlagOutline.svg');
+} 
+
+.custom-icon.arrow-down {
+    background: url('./svg/ArrowDownOutline.svg');
+} 
