@@ -60,7 +60,7 @@
         </div>
     </div>
     <div class="col-2 p-3 text-center bg-primary-lighter">
-        <p class="fw-bold mb-4">Glissez vos pixels !</p>
+        <p class="fw-bold mb-4">Placez vos pixels !</p>
         <div id="colors-wrapper" class="d-flex justify-content-center gap-4 flex-wrap">
             
         </div>
@@ -93,7 +93,7 @@
         const $colors = $('#colors-wrapper');
 
         for (const [key, value] of Object.entries(colorsList)) {
-            const $color = $('<span>').addClass('color-block').attr('color-name', key).attr('role', 'button').css('background-color', `rgb(${value[0]} ${value[1]} ${value[2]})`);
+            const $color = $('<span>').addClass('color-block').attr('title', key).attr('color-name', key).attr('role', 'button').css('background-color', `rgb(${value[0]} ${value[1]} ${value[2]})`);
             $color.on('click', toggleColorSelection)
             $colors.append($color);
         }

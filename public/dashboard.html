@@ -44,11 +44,11 @@
                             <p class="fw-bold fs-2">Workers</p>
                         </div>
                         <div class="ms-auto d-flex flex-column">
-                            <p id="worker-ready" class="fw-bold fs-2">37</p>
+                            <p id="worker-ready" class="fw-bold fs-2">50</p>
                             <p class="text-secondary">Workers prêts</p>
                         </div>
                         <div class="d-flex flex-column">
-                            <p id="worker-busy" class="fw-bold fs-2">13</p>
+                            <p id="worker-busy" class="fw-bold fs-2">0</p>
                             <p class="text-secondary">Workers indisponibles</p>
                         </div>
                     </div>
@@ -85,7 +85,7 @@
                     </div>
                     <div class="d-flex gap-2 ms-auto">
                         <p class="fw-bold">Le plus de pixels</p>
-                        <em class="custom-icon arrow-down"></em>
+                        <em id="team-list-sort-icon" role="button" class="custom-icon arrow-down" onclick="reverseTeamList()"></em>
                     </div>
                 </div>
                 <div id="teams-list" class="d-flex flex-column flex-grow-1 gap-3 pe-3 overflow-auto">
@@ -117,8 +117,8 @@
         populateTeamList();
 
         $("#add-layer").on("click", _ => showLayer());
-        const socket = io("localhost");
-        socket.on("workers/updated", w => resetWorkerAvailability(w.workerId));
+        const socket = io("localhost:8081");
+        socket.on("workers/updated", w => resetWorkerAvailability(w.workerId, 10000));
     });
 
     function generateWorkersGrid() {
@@ -129,27 +129,41 @@
         $.ajax({
             url: '/api/workers',
             success: function(result) {
-                result.forEach(x => $workerGrid.append(constructWorkerElemForGrid(x.id, x.cooldown)));
-                const available = result.filter(x => x.free).length;
+                result.forEach(x => {
+                    const $workerElem = constructWorkerElemForGrid(x.id);
+                    $workerGrid.append($workerElem);
 
-                $workerReady.text(available);
-                $workerBusy.text(50 - available);
+                    if (!x.free) {
+                        resetWorkerAvailability(x.id, x.cooldown * 1000)
+                    }
+                });
             }
         });
     }
 
-    function constructWorkerElemForGrid(id, cooldown) {
+    function constructWorkerElemForGrid(id) {
         const $worker = $('<span>').addClass('worker-grid-elem rounded-3').attr('workerId', id);
         return $worker;
     }
 
-    function resetWorkerAvailability(id) {
+    function resetWorkerAvailability(id, cooldown) {
         const $workerNode = $(`span[workerId=${id}]`);
+
+        const $workerReady = $('#worker-ready');
+        const $workerBusy = $('#worker-busy');
+
+        let available = parseInt($workerReady.text()) - 1;
+        $workerReady.text(available);
+        $workerBusy.text(50 - available);
 
         $workerNode.css('background-color', 'var(--secondary-10)');
         $workerNode.animate({
             backgroundColor: "#FCA250"
-        }, 10000);
+        }, cooldown, function() {
+            let available = parseInt($workerReady.text()) + 1;
+            $workerReady.text(available);
+            $workerBusy.text(50 - available);
+        });
     }
 
     function populateTeamList() {
@@ -184,6 +198,13 @@
                     .removeClass("placeholder");
             }
         });
+    }
+
+    function reverseTeamList() {
+        const $teamsList = $('#teams-list');
+        $teamsList.toggleClass('flex-column-reverse').toggleClass('flex-column');
+
+        $('#team-list-sort-icon').toggleClass('rotate-180');
     }
 
     function initLayersTable() {
