@@ -1,3 +1,5 @@
+const getPixels = require("get-pixels");
+
 colors_rgb = [[0, 0, 0],   
 [255, 255, 255],
 [13, 23, 31],
@@ -106,4 +108,32 @@ function color(rgb) {
     return colors_name[ind];
 }
 
-module.exports = color;
+function rgbToColors(rgb) {
+    return rgb.map(color);
+}
+
+function imgToRgb(img) {
+    return new Promise((resolve, reject) => getPixels(img, (err, { data, shape }) => {
+        if(err){
+            reject(err);
+            return;
+        }
+
+        const pixels = [];
+        for(let i = 0; i < data.length; i += shape[2]) {
+            const tmp = [];
+            for(let j = i; j < i + 3; j++) {
+                tmp.push(data[j]);
+            }
+            pixels.push(tmp);
+        }
+
+        resolve(pixels);
+    }));
+}
+
+async function imgToColors(img) {
+    return rgbToColors(await imgToRgb(img));
+}
+
+module.exports = { color, imgToRgb, imgToColors };

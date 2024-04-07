@@ -1,4 +1,5 @@
 const Repository = require("./repository");
+const ServerSocket = require("./server-socket");
 
 const repository = new Repository("workers");
 
@@ -23,6 +24,7 @@ class Worker {
         data.usage++;
         repository.addOrUpdate(this.id, data)
             .saveChanges();
+        ServerSocket.sockets.forEach(x => x.onWorkerDown(this));
 
         task?.execute(this)
             .then(_ => { task.ended = true; this.startNextTask(); })

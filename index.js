@@ -1,7 +1,10 @@
 const http = require('http');
 const https = require('https');
+const ServerSocket = require('./server-socket.js');
 require("./array-extensions");
+
 const api = require("./api");
+const layersController = require('./layers-controller.js');
 
 const express = require('express');
 const compression = require('compression');
@@ -52,6 +55,27 @@ app.post(['/war/go'], (req, res) => {
         .send("YOLO!");
 });
 
+//#region Layers
+
+app.post(['/layers/save'], async (req, res) => {
+    await layersController.saveLayer(req.body.Layer ?? req.body);
+    const layer = layersController.getLayer(req.body.Layer?.Name ?? req.body.Name);
+    res.status(200)
+        .send(layer);
+});
+app.post(['/layers/get'], (req, res) => {
+    const layer = layersController.getLayer(req.body.Id ?? req.body.LayerId);
+    res.status(200)
+        .send(layer);
+});
+app.post(['/layers'], (_, res) => {
+    const layers = layersController.getLayers();
+    res.status(200)
+        .send(layers);
+});
+
+//#endregion Layers
+
 app.use((req, res, next) => {
     req.path.replace("..","");
     if(req.path != "/favicon.ico")
@@ -60,6 +84,9 @@ app.use((req, res, next) => {
 
 const httpServer = http.createServer(app);
 const httpsServer = config.useTls ? https.createServer(options, app) : undefined;
+new ServerSocket(httpServer);
+if(httpsServer)
+    new ServerSocket(httpsServer);
 
 httpServer.listen(config.defaultPort);
 httpsServer?.listen(config.defaultHttpsPort);

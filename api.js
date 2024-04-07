@@ -1,8 +1,9 @@
 const Repository = require("./repository");
 const Task = require("./task");
+const { color } = require("./colors");
 const WorkerManager = require("./worker-manager");
 const WebSocket = require("./web-socket");
-const color = require("./colors");
+const LayersController = require("./layers-controller");
 
 const apiUrl = process.env.API_URL;
 const authUrl = process.env.AUTH_URL;
@@ -18,7 +19,6 @@ function processData(data) {
 }
 
 class Api {
-    layers = new Repository("layers");
     token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ6MktTejRUcWdvMHkzQzZ3czBoRmQ2cXBjV241WEdueWRpUThRUWQtWWNzIn0.eyJleHAiOjE3MTI0Mjg2OTUsImlhdCI6MTcxMjQyMTQ5NSwianRpIjoiNjZiNDkyMDEtN2QxOC00MjMwLTgwYjctYWRkZDMyNzU3MTUzIiwiaXNzIjoiaHR0cDovLzE0OS4yMDIuNzkuMzQ6ODA4MS9yZWFsbXMvY29kZWxlbWFucyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiI3NjhiOTMwMC02N2IwLTQzY2EtYjJiMS0xNDQwMTlhOWQ0NTEiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJwaXhlbC13YXIiLCJzZXNzaW9uX3N0YXRlIjoiN2EzYWIwNTUtZDQ5Ny00MWNhLTk0NmEtYTAxZjFjMGU0MGIxIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJodHRwOi8vMTQ5LjIwMi43OS4zNDo4MDgwIiwiaHR0cDovL2xvY2FsaG9zdDo0MjAwIl0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtY29kZWxlbWFucyIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsInNpZCI6IjdhM2FiMDU1LWQ0OTctNDFjYS05NDZhLWEwMWYxYzBlNDBiMSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiSSdtIEFwcGxpICYgSSBrbm93IGl0IiwidGVhbV9pZCI6IjYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJhcHBsaV9hbmRfa25vd19pdCIsImdpdmVuX25hbWUiOiJJJ20gQXBwbGkgJiBJIGtub3cgaXQifQ.gMJwLL9eokmAU7qd3vw14okE_XYL06I-haupQ74vXfOF1npp_vnWPmRMbtWXPAYzTiEkvjl3SxxayAyJZ1CZWxRyGC-salcgUHWBlhn7AD5VyMY0QpDKbmpz6VZh4PguY2cfzUovSowB7b6I4c4aiKa6yQhOgtNbKAdN5QS6N1upGvF0x9_4y2dMBIlww7GZmEGIMBZBlfivMqow9tr0FfGFRj5oPNJJzRt5FCmMqV1oQLVoEKhQgqMvTr-GnogWGz8on1mBN7C4xv1eBHCIQ7feSC3ll_lyUnsie7xkNsj42CSAJ6iZH0ge0gFN_ZTGMuwCV7egSPyjTZNj2MQWhg";
 
     constructor() {
@@ -203,8 +203,6 @@ class Api {
     async getWorkerStatus(req, res) {
         const data = WorkerManager.workers.map(worker => {
             const queue = worker.queue.filter(x => !x.ended).length;
-            let cooldown = worker.cooldown;
-
             return { id: worker.id, free: queue == 0, cooldown: worker.cooldown, queue: queue };
         });
 
@@ -374,7 +372,7 @@ class Api {
             }
         };
 
-        data.layer = this.layers.get(data.clusterName)?.image;
+        data.layer = LayersController.getRawLayer(data.clusterName)?.image;
 
         if(data.canvasName == undefined || data.chunk == undefined || data.numberOfWorkers == undefined || data.layer == undefined) {
             let message = "";
@@ -502,7 +500,7 @@ class Api {
             }
         };
 
-        data.layer = this.layers.get(data.clusterName)?.image;
+        data.layer = LayersController.getRawLayer(data.clusterName)?.image;
 
         if(data.canvasName == undefined || data.chunk == undefined || data.numberOfWorkers == undefined || data.layer == undefined) {
             let message = "";
