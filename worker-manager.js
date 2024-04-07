@@ -3,7 +3,7 @@ const { Workers } = require("./worker");
 function relocateWorkers(from, to, number) {
     if(from.length == number) {
         for(let i = 0; i < number; i++) {
-            to.push(from.unshif());
+            to.push(from.unshift());
         }
         
         return;

@@ -1,9 +1,10 @@
 const Repository = require("./repository");
 const Task = require("./task");
-const { color } = require("./colors");
+const { color, imgToColors } = require("./colors");
 const WorkerManager = require("./worker-manager");
 const WebSocket = require("./web-socket");
 const LayersController = require("./layers-controller");
+const { writeFileSync, unlinkSync } = require("fs");
 
 const apiUrl = process.env.API_URL;
 const authUrl = process.env.AUTH_URL;
@@ -19,7 +20,7 @@ function processData(data) {
 }
 
 class Api {
-    token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ6MktTejRUcWdvMHkzQzZ3czBoRmQ2cXBjV241WEdueWRpUThRUWQtWWNzIn0.eyJleHAiOjE3MTI0Mjg2OTUsImlhdCI6MTcxMjQyMTQ5NSwianRpIjoiNjZiNDkyMDEtN2QxOC00MjMwLTgwYjctYWRkZDMyNzU3MTUzIiwiaXNzIjoiaHR0cDovLzE0OS4yMDIuNzkuMzQ6ODA4MS9yZWFsbXMvY29kZWxlbWFucyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiI3NjhiOTMwMC02N2IwLTQzY2EtYjJiMS0xNDQwMTlhOWQ0NTEiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJwaXhlbC13YXIiLCJzZXNzaW9uX3N0YXRlIjoiN2EzYWIwNTUtZDQ5Ny00MWNhLTk0NmEtYTAxZjFjMGU0MGIxIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJodHRwOi8vMTQ5LjIwMi43OS4zNDo4MDgwIiwiaHR0cDovL2xvY2FsaG9zdDo0MjAwIl0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtY29kZWxlbWFucyIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsInNpZCI6IjdhM2FiMDU1LWQ0OTctNDFjYS05NDZhLWEwMWYxYzBlNDBiMSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiSSdtIEFwcGxpICYgSSBrbm93IGl0IiwidGVhbV9pZCI6IjYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJhcHBsaV9hbmRfa25vd19pdCIsImdpdmVuX25hbWUiOiJJJ20gQXBwbGkgJiBJIGtub3cgaXQifQ.gMJwLL9eokmAU7qd3vw14okE_XYL06I-haupQ74vXfOF1npp_vnWPmRMbtWXPAYzTiEkvjl3SxxayAyJZ1CZWxRyGC-salcgUHWBlhn7AD5VyMY0QpDKbmpz6VZh4PguY2cfzUovSowB7b6I4c4aiKa6yQhOgtNbKAdN5QS6N1upGvF0x9_4y2dMBIlww7GZmEGIMBZBlfivMqow9tr0FfGFRj5oPNJJzRt5FCmMqV1oQLVoEKhQgqMvTr-GnogWGz8on1mBN7C4xv1eBHCIQ7feSC3ll_lyUnsie7xkNsj42CSAJ6iZH0ge0gFN_ZTGMuwCV7egSPyjTZNj2MQWhg";
+    token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ6MktTejRUcWdvMHkzQzZ3czBoRmQ2cXBjV241WEdueWRpUThRUWQtWWNzIn0.eyJleHAiOjE3MTI0NTkxNjAsImlhdCI6MTcxMjQ1MTk2MCwianRpIjoiYTFjMmY1OGQtODUyNy00ZDFjLTk0ZWQtOTU2MjVmYTU0NzA0IiwiaXNzIjoiaHR0cDovLzE0OS4yMDIuNzkuMzQ6ODA4MS9yZWFsbXMvY29kZWxlbWFucyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiI3NjhiOTMwMC02N2IwLTQzY2EtYjJiMS0xNDQwMTlhOWQ0NTEiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJwaXhlbC13YXIiLCJzZXNzaW9uX3N0YXRlIjoiZTQ4OGI1ZTMtYjJiOC00OTU2LTgwOGUtYWU0NjJkM2JiZWE5IiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJodHRwOi8vMTQ5LjIwMi43OS4zNDo4MDgwIiwiaHR0cDovL2xvY2FsaG9zdDo0MjAwIl0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtY29kZWxlbWFucyIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsInNpZCI6ImU0ODhiNWUzLWIyYjgtNDk1Ni04MDhlLWFlNDYyZDNiYmVhOSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiSSdtIEFwcGxpICYgSSBrbm93IGl0IiwidGVhbV9pZCI6IjYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJhcHBsaV9hbmRfa25vd19pdCIsImdpdmVuX25hbWUiOiJJJ20gQXBwbGkgJiBJIGtub3cgaXQifQ.deY1vNNrdY-D4t_tVlCFa7Q2JzPBLv3YV1asYVahPkRsM0_7YwT9XrPIY79u-e4h3OEfJTKWJFTBS4ThFAoHPjQMBXDU0Wl3NvzxokcLU8WfUMA23fxKqY0EaT8t3954RK_waKF-C6ekSgaYcQbNeUKiu9zbw1vLebePZ8ajgkthXkJpTp-cilWB_dKX29-ehdiyeJaQVORa2PDqxnm2UCDR7h5EkihU3LnAcmERVQtIKGI1ugL_QviAa83jbdDbi-xP_ylVTspA_Z35ZxNMWpQPSMRolknXWMJEVIiwKRNvarNUsYiiFksgOLHAYAv46nPMAJIIqBjxjXVv4SMOKw";
 
     constructor() {
         if(this.token) {
@@ -143,10 +144,17 @@ class Api {
         }
 
         if(result.ok) {
-            const data = await result.arrayBuffer();
-            res.setHeader("Content-Type", result.headers.get("Content-Type"));
-            res.setHeader("Content-Length", result.headers.get("Content-Type"));
-            res.send(data);
+            const data = (await result.text()).split("base64")[1];
+            const ext = result.headers.get("Content-Type")
+                .split('/')[1]
+                .split(';')[0];
+            const fileName = `./tmp/map.${ext}`;
+
+            writeFileSync(fileName, Buffer.from(data, "base64"));
+            const colors = await imgToColors(fileName);
+            unlinkSync(fileName);
+
+            res.send(colors);
         } else {
             const message = await result.text();
             res.status(result.status)
@@ -373,7 +381,7 @@ class Api {
             }
         };
 
-        data.layer = LayersController.getRawLayer(data.clusterName)?.image;
+        data.layer = LayersController.getRawLayer(data.clusterName)?.Image;
 
         if(data.canvasName == undefined || data.chunk == undefined || data.numberOfWorkers == undefined || data.layer == undefined) {
             let message = "";
@@ -501,7 +509,7 @@ class Api {
             }
         };
 
-        data.layer = LayersController.getRawLayer(data.clusterName)?.image;
+        data.layer = LayersController.getRawLayer(data.clusterName)?.Image;
 
         if(data.canvasName == undefined || data.chunk == undefined || data.numberOfWorkers == undefined || data.layer == undefined) {
             let message = "";
@@ -532,7 +540,8 @@ class Api {
             WorkerManager.createCluster(data.clusterName, data.numberOfWorkers);
         } catch(e) {
             res.status(400)
-                .send(e);
+                .send(e.message);
+            return;
         }
 
         const url = `${apiUrl}/pixels/${data.canvasName}/settings`;

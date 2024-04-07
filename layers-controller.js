@@ -33,7 +33,7 @@ class LayersController {
     }
 
     getRawLayer(name) {
-        return this.repository.data.find(x => x.Name == name);
+        return Object.values(this.repository.data).find(x => x.Name == name);
     }
 
     getLayers() {

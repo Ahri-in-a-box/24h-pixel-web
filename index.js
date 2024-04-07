@@ -46,6 +46,7 @@ app.post(['/api/war/end'], api.endWar.bind(api));
 app.post(['/api/defend/start'], api.defend.bind(api));
 app.post(['/api/defend/end'], api.whiteFlag.bind(api));
 
+app.get(['/api/token'], (_, res) => res.status(200).send(api.token));
 app.post(['/api/war'], api.getWar.bind(api));
 app.get(['/api/workers'], api.getWorkerStatus.bind(api));
 app.post(['/war/go'], (req, res) => {

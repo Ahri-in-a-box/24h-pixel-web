@@ -112,7 +112,7 @@ function rgbToColors(rgb) {
     return rgb.map(color);
 }
 
-function imgToRgb(img) {
+function imgToColors(img) {
     return new Promise((resolve, reject) => getPixels(img, (err, { data, shape }) => {
         if(err){
             reject(err);
@@ -125,15 +125,17 @@ function imgToRgb(img) {
             for(let j = i; j < i + 3; j++) {
                 tmp.push(data[j]);
             }
-            pixels.push(tmp);
+            pixels.push({
+                coord: {
+                    x: i % shape[1],
+                    y: i / shape[1]
+                },
+                color: color(tmp) 
+            });
         }
 
         resolve(pixels);
     }));
 }
 
-async function imgToColors(img) {
-    return rgbToColors(await imgToRgb(img));
-}
-
-module.exports = { color, imgToRgb, imgToColors };
+module.exports = { color, imgToColors };
