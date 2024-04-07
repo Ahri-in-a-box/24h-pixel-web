@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="css/global.css">
     <link rel="stylesheet" href="css/bootstrap.overrides.css">
+    <link rel="stylesheet" href="css/sweetalert2.global.overrides.css">
     <link rel="stylesheet" href="lib/custom-icons/custom-icons.css">
     <link href="https://cdn.datatables.net/v/bs5/dt-2.0.3/fh-4.0.1/sc-2.4.1/sl-2.0.0/datatables.min.css" rel="stylesheet">
     <!-- #endregion Imports CSS -->
@@ -18,12 +19,23 @@
             width: 32px;
             height: 32px;
         }
+        #colors-wrapper .color-block.selected {
+            border: 2px solid white;
+            box-shadow: rgba(0, 0, 0, 0.25) 0px 14px 28px, rgba(0, 0, 0, 0.22) 0px 10px 10px;
+        }
 
         .pixel {
+            --pixel-size: 6px;
             margin: 1px;
-            width: 6px;
-            height: 6px;
+            width: var(--pixel-size);
+            height: var(--pixel-size);
             background-color: white;
+        }
+        .pixel.placed {
+            box-shadow: rgba(6, 24, 44, 0.4) 0px 0px 0px 2px, rgba(6, 24, 44, 0.65) 0px 4px 6px -1px, rgba(255, 255, 255, 0.08) 0px 1px 0px inset;        }
+
+        .no-border .pixel {
+            margin: 0;
         }
     </style>
 </head>
@@ -36,7 +48,13 @@
             <a class="btn btn-light btn-nav"><em class="custom-icon collection"></em> Calques</a>
         </div>
     </div> 
-    <div id="grid-wrapper" class="col overflow-auto">
+    <div id="grid-wrapper" class="col position-relative overflow-auto">
+        <div id="grid-loader-wrapper" class="position-absolute h-100 w-100 loader-wrapper collapse">
+            <div class="d-flex flex-column justify-content-center align-items-center h-100 w-100">
+                <em class="custom-icon icon-xxl flag pulse mb-3"></em>
+                <p class="fw-bold fs-3">Chargement ...</p>
+            </div>
+        </div>
         <div id="grid">
 
         </div>
@@ -44,8 +62,9 @@
     <div class="col-2 p-3 text-center bg-primary-lighter">
         <p class="fw-bold mb-4">Glissez vos pixels !</p>
         <div id="colors-wrapper" class="d-flex justify-content-center gap-4 flex-wrap">
-
+            
         </div>
+        <button class="btn btn-outline-primary rounded-pill mt-4" onclick="toggleBorders()">Afficher/Cacher la grille</button>
     </div>
 </body>
 <!-- #region Imports JS -->
@@ -56,15 +75,16 @@
     crossorigin="anonymous"></script>
 <script src="https://cdn.datatables.net/v/dt/dt-2.0.3/datatables.min.js"></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <!-- #endregion Imports JS -->
 
 <script>
-
     $(document).ready(() => {
-        populateColors();
-        generateGrid(5, 7, 50, 50);
-        handleGridScroll();
         
+        populateColors();
+        getGridData();
+        handleGridScroll();
+        handlePixelClick();
 
         handleToWebSocket();
     });
@@ -73,13 +93,66 @@
         const $colors = $('#colors-wrapper');
 
         for (const [key, value] of Object.entries(colorsList)) {
-            const $color = $('<span>').addClass('color-block').css('background-color', `rgb(${value[0]} ${value[1]} ${value[2]})`);
-            $colors.append($color);        
+            const $color = $('<span>').addClass('color-block').attr('color-name', key).attr('role', 'button').css('background-color', `rgb(${value[0]} ${value[1]} ${value[2]})`);
+            $color.on('click', toggleColorSelection)
+            $colors.append($color);
         }
 
     }
 
-    function generateGrid(nbRow, nbCol, chunkX, chunkY) {
+    function toggleColorSelection() {
+        const $color = $(this);
+
+        $('.color-block').not($color).removeClass('selected');
+        $color.toggleClass('selected');
+    }
+
+    function handlePixelClick() {
+        const $grid = $('#grid');
+
+        $grid.on('click', '.pixel', function() {
+            const $pixel = $(this);
+
+            const $selectedColorBlock = $('.color-block.selected');
+            const selectedColorRGB = $selectedColorBlock.css('background-color');
+            const selectedColorName = $selectedColorBlock.attr('color-name');
+
+            if (!selectedColorName) {
+                return;
+            }
+
+            placePixel($pixel, selectedColorRGB, selectedColorName);
+            
+        });
+    }
+
+    function placePixel($pixel, selectedColorRGB, selectedColorName) {
+        $pixel.css('background-color', selectedColorRGB).addClass('placed');
+
+        $.ajax({
+            type: "POST",
+            url: "/api/place",
+            contentType: "application/json",
+            data: JSON.stringify({
+                "TeamId": 6,
+                "Canvas": "canvas_epreuve",
+                "Color": selectedColorName,
+                "PosX": $pixel.attr('x'),
+                "PosY": $pixel.attr('y')
+            })
+        })
+    }
+
+    function getRGB(str){
+        var match = str.match(/rgba?\((\d{1,3}), ?(\d{1,3}), ?(\d{1,3})\)?(?:, ?(\d(?:\.\d?))\))?/);
+        return match ? {
+            red: match[1],
+            green: match[2],
+            blue: match[3]
+        } : {};
+    }
+
+    function generateGrid(nbRow, nbCol, chunkX, chunkY, gridData) {
         const $grid = $('#grid')
 
         for (let rowIdx = 0; rowIdx < nbRow; rowIdx++) {
@@ -87,13 +160,13 @@
             $grid.append($row);
 
             for (let colIdx = 0; colIdx < nbCol; colIdx++) {
-                const $chunk = generateChunk(rowIdx, colIdx, chunkX, chunkY);
+                const $chunk = generateChunk(rowIdx, colIdx, chunkX, chunkY, nbCol, gridData);
                 $row.append($chunk);
             }
         }
     }
 
-    function generateChunk(rowIdx, colIdx, chunkX, chunkY) {
+    function generateChunk(rowIdx, colIdx, chunkX, chunkY, nbCol, gridData) {
         const $chunk = $('<div>');
 
         for (let chunkRowIdx = 0; chunkRowIdx < chunkY; chunkRowIdx++) {
@@ -101,12 +174,46 @@
             $chunk.append($row);
 
             for (let chunkColIdx = 0; chunkColIdx < chunkX; chunkColIdx++) {
-                const $pixel = $(`<span x="${colIdx * chunkX + chunkColIdx}" y="${rowIdx * chunkY + chunkRowIdx}" title="${colIdx * chunkX + chunkColIdx} - ${rowIdx * chunkY + chunkRowIdx}" class="pixel">`)
+                const x = colIdx * chunkX + chunkColIdx;
+                const y = rowIdx * chunkY + chunkRowIdx;
+
+                const posInList = nbCol * chunkX * y + x;
+                const colorName = gridData[posInList].color;
+                const rgb = colorsList[colorName];
+                const $pixel = $(`<span x="${x}" y="${y}" title="(${x}, ${y})" class="pixel">`).css('background-color', `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`);
                 $row.append($pixel);
             }
         }
 
         return $chunk;
+    }
+
+    function getGridData() {
+        $('#grid-loader-wrapper').show(400);
+        $.ajax({
+            type: "POST",
+            url: "/api/canvas/settings",
+            contentType: "application/json",
+            data: JSON.stringify({
+                "Name": "canvas_epreuve"
+            }),
+            success: function(result) {
+                $.ajax({
+                    type: "POST",
+                    url: "/api/canvas/image",
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        "Id": result._id
+                    }),
+                    success: function(result) {
+                        console.log(result);
+                        
+                        generateGrid(5, 7, 50, 50, result);
+                        $('#grid-loader-wrapper').hide(400);
+                    }
+                })
+            }
+        });
     }
 
     function updatePixelFromName(x, y, color_name) {
@@ -116,7 +223,7 @@
     }
 
     function updatePixelFromRGB(x, y, rgb) {
-        $(`.pixel[x="${x}"][y="${y}"]`).css('background-color', `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`);
+        $(`.pixel[x="${x}"][y="${y}"]`).css('background-color', `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`).removeClass('placed');
     }
 
     const token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ6MktTejRUcWdvMHkzQzZ3czBoRmQ2cXBjV241WEdueWRpUThRUWQtWWNzIn0.eyJleHAiOjE3MTI0NTkxNjAsImlhdCI6MTcxMjQ1MTk2MCwianRpIjoiYTFjMmY1OGQtODUyNy00ZDFjLTk0ZWQtOTU2MjVmYTU0NzA0IiwiaXNzIjoiaHR0cDovLzE0OS4yMDIuNzkuMzQ6ODA4MS9yZWFsbXMvY29kZWxlbWFucyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiI3NjhiOTMwMC02N2IwLTQzY2EtYjJiMS0xNDQwMTlhOWQ0NTEiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJwaXhlbC13YXIiLCJzZXNzaW9uX3N0YXRlIjoiZTQ4OGI1ZTMtYjJiOC00OTU2LTgwOGUtYWU0NjJkM2JiZWE5IiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJodHRwOi8vMTQ5LjIwMi43OS4zNDo4MDgwIiwiaHR0cDovL2xvY2FsaG9zdDo0MjAwIl0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtY29kZWxlbWFucyIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsInNpZCI6ImU0ODhiNWUzLWIyYjgtNDk1Ni04MDhlLWFlNDYyZDNiYmVhOSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiSSdtIEFwcGxpICYgSSBrbm93IGl0IiwidGVhbV9pZCI6IjYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJhcHBsaV9hbmRfa25vd19pdCIsImdpdmVuX25hbWUiOiJJJ20gQXBwbGkgJiBJIGtub3cgaXQifQ.deY1vNNrdY-D4t_tVlCFa7Q2JzPBLv3YV1asYVahPkRsM0_7YwT9XrPIY79u-e4h3OEfJTKWJFTBS4ThFAoHPjQMBXDU0Wl3NvzxokcLU8WfUMA23fxKqY0EaT8t3954RK_waKF-C6ekSgaYcQbNeUKiu9zbw1vLebePZ8ajgkthXkJpTp-cilWB_dKX29-ehdiyeJaQVORa2PDqxnm2UCDR7h5EkihU3LnAcmERVQtIKGI1ugL_QviAa83jbdDbi-xP_ylVTspA_Z35ZxNMWpQPSMRolknXWMJEVIiwKRNvarNUsYiiFksgOLHAYAv46nPMAJIIqBjxjXVv4SMOKw";
@@ -135,6 +242,10 @@
         socket.on('pixelUpdated', (infos) => {
             updatePixelFromRGB(infos.x, infos.y, infos.rgb)
         });
+    }
+
+    function toggleBorders() {
+        $('#grid').toggleClass('no-border');
     }
 
     //#region Grid Scroll

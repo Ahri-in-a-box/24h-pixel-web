@@ -1,0 +1,38 @@
+.swal2-popup {
+    border-radius: 16px;
+    box-shadow: var(--small-shadow);
+    padding: 24px;
+
+    gap: 16px;
+}
+
+.swal2-header,
+.swal2-body,
+.swal2-actions {
+    flex-direction: row;
+}
+
+.swal2-header {
+    justify-content: space-between;
+}
+
+.swal2-actions {
+    justify-content: space-around;
+    gap: 16px;
+    margin-top: 0;
+}
+
+.swal2-content {
+    text-align: start;
+    font-size: var(--bs-body-font-size);
+    color: inherit;
+}
+
+.swal2-close {
+    font-size: inherit;
+    position: initial;
+    color: var(--bs-dark);
+}
+.swal2-close:focus {
+    outline: none;
+}
