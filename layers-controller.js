@@ -9,7 +9,6 @@ function mapLayer(layer) {
 
     layer.Image = layer.Id + layer.ImageExt;
     layer.IsActive = WorkerManager.getCluster(layer.Name) != undefined;
-    delete layer.ImageExt;
 
     return layer;
 }
@@ -18,7 +17,7 @@ class LayersController {
     repository = new Repository("layers");
 
     async saveLayer(layer) {
-        if(!layer || layer == "") {
+        if(!layer.Id) {
             layer.Id = crypto.randomUUID();
         }
 
@@ -26,8 +25,8 @@ class LayersController {
             layer.Image = layer.Image.split("base64")[1];
         }
 
-        writeFileSync(`./public/layers/${layer.Id}.${layer.ImageExt}`, Buffer.from(layer.Image, "base64"));
-        layer.Image = await imgToColors(`./public/layers/${layer.Id}.${layer.ImageExt}`);
+        writeFileSync(`./public/layers/${layer.Id}${layer.ImageExt}`, Buffer.from(layer.Image, "base64"));
+        layer.Image = await imgToColors(`./public/layers/${layer.Id}${layer.ImageExt}`);
 
         this.repository
             .addOrUpdate(layer.Id, layer)
