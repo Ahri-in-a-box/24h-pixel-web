@@ -208,7 +208,7 @@
                             data: "Name",
                             render: function(data, type, row) {
                                 if (type == "display") {
-                                    return `<div class="d-flex align-items-center gap-2"><img class="layer-table-image" src="/layers/${row.Image}${row.ImageExt}"></img>${data}</div>`
+                                    return `<div class="d-flex align-items-center gap-2"><img class="layer-table-image" src="/layers/${row.Image}"></img>${data}</div>`
                                 }
 
                                 return data;
@@ -216,7 +216,7 @@
                         },
                         {
                             title: "Chunk",
-                            data: "ChunkId"
+                            data: "Chunk"
                         },
                         {
                             title: "Worker",
