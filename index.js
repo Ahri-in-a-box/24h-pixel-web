@@ -49,18 +49,12 @@ app.post(['/api/defend/end'], api.whiteFlag.bind(api));
 app.get(['/api/token'], (_, res) => res.status(200).send(api.token));
 app.post(['/api/war'], api.getWar.bind(api));
 app.get(['/api/workers'], api.getWorkerStatus.bind(api));
-app.post(['/war/go'], (req, res) => {
-    const data = JSON.parse(readFileSync(`./${req.body.Image}.json`, "utf-8"));
-    api.placePixels(data, req.body.Chunk, req.body.Canvas, req.body.Cluster, req.body.Workers ?? 1);
-    res.status(200)
-        .send("YOLO!");
-});
 
 //#region Layers
 
 app.post(['/layers/save'], async (req, res) => {
-    await layersController.saveLayer(req.body.Layer ?? req.body);
-    const layer = layersController.getLayer(req.body.Layer?.Name ?? req.body.Name);
+    const id = await layersController.saveLayer(req.body.Layer ?? req.body);
+    const layer = layersController.getLayer(id);
     res.status(200)
         .send(layer);
 });
@@ -74,6 +68,7 @@ app.get(['/layers'], (_, res) => {
     res.status(200)
         .send(layers);
 });
+app.post(['/layers/place'], api.placePixels.bind(api));
 
 //#endregion Layers
 
