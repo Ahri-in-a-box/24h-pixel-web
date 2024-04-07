@@ -1,5 +1,5 @@
 {
-    "defaultPort": 8081,
+    "defaultPort": 80,
     "defaultHttpsPort": 443,
     "useTls": false,
     "redirectToHttps": false

@@ -51,6 +51,10 @@ class Worker {
         return Math.max(((this.lastTask - new Date()) / 1000) + 11, 0);
     }
 
+    get waiting() {
+        this.queue.filter(x => !x.ended).length;
+    }
+
     set onEnd(val) {
         this.endFunction = val;
     }

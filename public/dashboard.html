@@ -29,7 +29,7 @@
             <div class="bg-light rounded-circle p-2 ">
                 <em class="custom-icon icon-sm flag"></em>
             </div>
-            <p class="fw-bolder fs-4">667 / 240000</p>
+            <p class="fw-bolder fs-4"><span id="pixels" class="placeholder">0000000 / 0000000</span></p>
             <button class="ms-auto btn btn-large btn-outline-primary rounded-pill">Placez un calque</button>
             <button class="btn btn-large btn-primary rounded-pill">Placez vos pixels</button>
         </div>
@@ -44,11 +44,11 @@
                             <p class="fw-bold fs-2">Workers</p>
                         </div>
                         <div class="ms-auto d-flex flex-column">
-                            <p class="fw-bold fs-2">37</p>
+                            <p id="worker-ready" class="fw-bold fs-2">37</p>
                             <p class="text-secondary">Workers prêts</p>
                         </div>
                         <div class="d-flex flex-column">
-                            <p class="fw-bold fs-2">13</p>
+                            <p id="worker-busy" class="fw-bold fs-2">13</p>
                             <p class="text-secondary">Workers indisponibles</p>
                         </div>
                     </div>
@@ -65,7 +65,7 @@
                             <p class="fw-bold">Mes</p>
                             <p class="fw-bold fs-2">Calques</p>
                         </div>
-                        <div class="ms-auto btn btn-primary rounded-pill">Ajouter</div>
+                        <div id="add-layer" class="ms-auto btn btn-primary rounded-pill">Ajouter</div>
                     </div>
                     <div id="layers-table-wrapper" class="flex-grow-1">
                         <table id="layers-table" class="table table-hover custom-table">
@@ -95,6 +95,7 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="modal" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true"></div>
 </body>
 <!-- #region Imports JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
@@ -104,6 +105,7 @@
     crossorigin="anonymous"></script>
 <script src="https://cdn.datatables.net/v/dt/dt-2.0.3/datatables.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js" integrity="sha512-57oZ/vW8ANMjR/KQ6Be9v/+/h6bq9/l3f0Oc7vn6qMqyhvPd1cvKBRWWpzu0QoneImqr2SkmO4MSqU+RpHom3Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
 <!-- #endregion Imports JS -->
 
 <script>
@@ -111,114 +113,200 @@
 
     $(document).ready(() => {
         generateWorkersGrid();
-        layersDataTable = initLayersTable();
+        initLayersTable();
         populateTeamList();
+
+        $("#add-layer").on("click", _ => showLayer());
+        const socket = io("localhost");
+        socket.on("workers/updated", w => resetWorkerAvailability(w.workerId));
     });
 
     function generateWorkersGrid() {
         const $workerGrid = $('#workers-grid');
+        const $workerReady = $('#worker-ready');
+        const $workerBusy = $('#worker-busy');
 
-        let i = 0
-        for(i; i < 50; i++) {
-            $workerGrid.append(constructWorkerElemForGrid(i))
-        }
+        $.ajax({
+            url: '/api/workers',
+            success: function(result) {
+                result.forEach(x => $workerGrid.append(constructWorkerElemForGrid(x.id, x.cooldown)));
+                const available = result.filter(x => x.free).length;
+
+                $workerReady.text(available);
+                $workerBusy.text(50 - available);
+            }
+        });
     }
 
-    function constructWorkerElemForGrid(id) {
+    function constructWorkerElemForGrid(id, cooldown) {
         const $worker = $('<span>').addClass('worker-grid-elem rounded-3').attr('workerId', id);
         return $worker;
+    }
+
+    function resetWorkerAvailability(id) {
+        const $workerNode = $(`span[workerId=${id}]`);
     }
 
     function populateTeamList() {
         const $teamsList = $('#teams-list');
         $teamsList.css('max-height', $teamsList.outerHeight());
         
+        $.ajax({
+            type: 'POST',
+            url: '/api/war',
+            contentType: 'application/json',
+            data: JSON.stringify({ Id: 1 }),
+            success: function(result) {
+                result = JSON.parse(result);
+                result.teams.forEach(x => {
+                    const $teamElem = $('<div>');
+                    const $textRow = $('<div>').addClass('d-flex justify-content-between mb-1');
+                    $textRow.append($('<p>').text(`${x.name} (${x.id})`));
+                    $textRow.append($('<p>').addClass('fw-bold').text(`${x.pixels}`));
 
-        let i = 1;
-        for (i; i <= 14; i++) {
-            const $teamElem = $('<div>');
-            const $textRow = $('<div>').addClass('d-flex justify-content-between mb-1');
-            $textRow.append($('<p>').text(`Equipe n°${i}`));
-            $textRow.append($('<p>').addClass('fw-bold').text(`${i * 100}`));
+                    $progressWrapper = $('<div>').addClass('progress rounded-pill').height(16);
+                    $progressBar = $('<div class="progress-bar rounded-pill" role="progressbar"></div>').css('width', `${(x.pixels / result.totalPixels) * 100}%`)
+                    $progressWrapper.append($progressBar);
 
-            $progressWrapper = $('<div>').addClass('progress rounded-pill').height(16);
-            $progressBar = $('<div class="progress-bar rounded-pill" role="progressbar"></div>').css('width', `${i * 5}%`)
-            $progressWrapper.append($progressBar);
+                    $teamElem.append($textRow);
+                    $teamElem.append($progressWrapper);
 
-            $teamElem.append($textRow);
-            $teamElem.append($progressWrapper);
+                    $teamsList.append($teamElem);
+                });
 
-            $teamsList.append($teamElem);
-        }
+                const team = result.teams.find(x => x.id == 6);
+                $("#pixels").text(`${team.pixels} / ${result.totalPixels}`)
+                    .removeClass("placeholder");
+            }
+        });
     }
 
     function initLayersTable() {
         const $table = $('#layers-table');
-
         const availableSpace = $('#layers-table-wrapper').outerHeight();
 
-        return $table.DataTable({
-            layout: {
-                topStart: null,
-                topEnd: null,
-                bottomStart: null,
-            },
-            paging: false,
-            scrollY: availableSpace - 60,
-            data: [
-                {
-                    "Name": "Calque n°1",
-                    "Image": "fab.png",
-                    "ChunkId": 12,
-                    "NbWorkers": 20,
-                    "IsActive": false
-                },
-                {
-                    "Name": "Calque n°2",
-                    "Image": "fab.png",
-                    "ChunkId": 3,
-                    "NbWorkers": 20,
-                    "IsActive": true
-                }
-            ],
-            columns: [
-                {  
-                    title: "Nom",
-                    data: "Name",
-                    render: function(data, type, row) {
-                        if (type == "display") {
-                            return `<div class="d-flex align-items-center gap-2"><img class="layer-table-image" src="img/${row.Image}"></img>${data}</div>`
-                        }
+        $.ajax({
+            url: '/layers',
+            success: function(result) {
+                layersDataTable = $table.DataTable({
+                    layout: {
+                        topStart: null,
+                        topEnd: null,
+                        bottomStart: null,
+                    },
+                    paging: false,
+                    scrollY: availableSpace - 60,
+                    data: result,
+                    columns: [
+                        {  
+                            title: "Nom",
+                            data: "Name",
+                            render: function(data, type, row) {
+                                if (type == "display") {
+                                    return `<div class="d-flex align-items-center gap-2"><img class="layer-table-image" src="/layers/${row.Image}${row.ImageExt}"></img>${data}</div>`
+                                }
 
-                        return data;
-                    }
-                },
-                {
-                    title: "Chunk",
-                    data: "ChunkId"
-                },
-                {
-                    title: "Worker",
-                    data: "NbWorkers"
-                },
-                {
-                    title: "Status",
-                    data: "IsActive",
-                    render: function(data, type) {
-                        if (type == "display") {
-                            if (!data) {
-                                return '<button class="btn btn-outline-dark rounded-pill">Inactif</button>'
-                            } else {
-                                return '<button class="btn btn-primary rounded-pill">Actif</button>'
+                                return data;
                             }
+                        },
+                        {
+                            title: "Chunk",
+                            data: "ChunkId"
+                        },
+                        {
+                            title: "Worker",
+                            data: "NbWorkers"
+                        },
+                        {
+                            title: "Status",
+                            data: "IsActive",
+                            render: function(data, type) {
+                                if (type == "display") {
+                                    if (!data) {
+                                        return '<button class="btn btn-outline-dark rounded-pill">Inactif</button>'
+                                    } else {
+                                        return '<button class="btn btn-primary rounded-pill">Actif</button>'
+                                    }
 
-                            
+                                    
+                                }
+
+                                return data;
+                            }
                         }
+                    ]
+                });
+            }
+        });
+    }
 
-                        return data;
+    function toBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+        });
+    }
+
+    function closeModal() {
+        $('#modal').modal('hide');
+    }
+
+    function showLayer(id) {
+        $.ajax({
+            url: "/layers/get",
+            contentType: 'application/json',
+            data: JSON.stringify({ Id: id }),
+            type: 'POST',
+            success: function (result) {
+                $.ajax({
+                    url: "/_layer.html",
+                    contentType: 'application/json',
+                    data: JSON.stringify({ Id: id }),
+                    type: 'POST',
+                    success: function (html) {
+                        $('#modal').html(html)
+                            .modal('show');
+
+                        if(!result) {
+                            Object.entries(result)
+                                .forEach(([key, val]) => $(`#modal #${key}`).val(val))
+                        }
                     }
+                });
+            }
+        });
+    }
+
+    async function saveLayer() {
+        let data = {};
+        $("#layer-form input[type!=file]").toArray().forEach(x => data[x.getAttribute("name")] = x.value);
+        const promises = $("#layer-form input[type=file]").toArray()
+            .map(x => new Promise(async resolve => {
+                data[x.getAttribute("name")] = await toBase64(x.files[0]);
+                resolve();
+            })
+        );
+        await Promise.all(promises);
+        data.ImageExt = "." + $("#layer-form input[type=file]")[0].files[0].type.split("/")[1];
+
+        $.ajax({
+            url: "/layers/save",
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            type: 'POST',
+            success: function (result) {
+                console.log(result);
+
+                if (data.id) {
+                    layersDataTable.rows.add([result], true);
+                } else {
+                    layersDataTable.rows.update(result, $(`#layers-table tbody tr [id='${result.Id}']`), null, true);
                 }
-            ]
+
+                closeModal();
+            }
         });
     }
 
