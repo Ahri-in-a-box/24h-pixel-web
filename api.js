@@ -303,13 +303,14 @@ class Api {
             return;
         }
 
+        const url = `${apiUrl}/canvas/${canvasId}`;
         const options = {
             headers: {
                 Authorization: `Bearer ${this.token}`
             }
         };
 
-        let result = await fetch(`${apiUrl}/canvas/${canvasId}`, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
+        let result = await fetch(url, options).catch(_ => ({ status: 400, text: async() => "Connection failed" }));
         if(result.status == 403) {
             await this.getToken();
             options.headers.Authorization = `Bearer ${this.token}`;
